@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Публикация вакансии</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0f1a;
+  --card:rgba(255,255,255,0.06);
+  --card-border:rgba(255,255,255,0.1);
+  --card-hover:rgba(255,255,255,0.09);
+  --glass:rgba(255,255,255,0.04);
+  --glass-strong:rgba(255,255,255,0.08);
+  --glass-border:rgba(255,255,255,0.12);
+  --primary:#6c8aff;
+  --primary-soft:rgba(108,138,255,0.15);
+  --primary-glow:rgba(108,138,255,0.3);
+  --accent:#a78bfa;
+  --accent-soft:rgba(167,139,250,0.12);
+  --text:#f0f0f5;
+  --text-secondary:rgba(240,240,245,0.5);
+  --text-muted:rgba(240,240,245,0.3);
+  --border:rgba(255,255,255,0.08);
+  --error:#ff6b8a;
+  --error-bg:rgba(255,107,138,0.1);
+  --error-border:rgba(255,107,138,0.2);
+  --success:#5ee4a0;
+  --success-bg:rgba(94,228,160,0.1);
+  --radius:16px;
+  --radius-sm:12px;
+  --transition:0.3s cubic-bezier(0.4,0,0.2,1);
+  --font:'Inter',system-ui,-apple-system,sans-serif;
+  --orb-1:#6c8aff;
+  --orb-2:#a78bfa;
+  --orb-3:#5ee4a0;
+  --orb-4:#ff6b8a;
+}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.55;
+  min-height:100vh;
+  min-height:100dvh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* ── Animated Orb Background ── */
+.bg-canvas{
+  position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+}
+.orb{
+  position:absolute;
+  border-radius:50%;
+  filter:blur(80px);
+  opacity:0.35;
+  animation:orbFloat 20s ease-in-out infinite;
+}
+.orb-1{
+  width:340px;height:340px;
+  background:var(--orb-1);
+  top:-10%;left:-5%;
+  animation-duration:22s;
+}
+.orb-2{
+  width:280px;height:280px;
+  background:var(--orb-2);
+  top:35%;right:-8%;
+  animation-duration:18s;animation-delay:-4s;
+}
+.orb-3{
+  width:250px;height:250px;
+  background:var(--orb-3);
+  bottom:-5%;left:15%;
+  animation-duration:25s;animation-delay:-9s;
+  opacity:0.25;
+}
+.orb-4{
+  width:200px;height:200px;
+  background:var(--orb-4);
+  top:60%;left:50%;
+  animation-duration:20s;animation-delay:-6s;
+  opacity:0.18;
+}
+.orb-5{
+  width:160px;height:160px;
+  background:var(--primary);
+  top:10%;right:25%;
+  animation-duration:28s;animation-delay:-12s;
+  opacity:0.2;
+}
+@keyframes orbFloat{
+  0%,100%{transform:translate(0,0) scale(1)}
+  25%{transform:translate(30px,-40px) scale(1.1)}
+  50%{transform:translate(-20px,30px) scale(0.9)}
+  75%{transform:translate(35px,20px) scale(1.05)}
+}
+
+/* ── Grain overlay ── */
+.bg-canvas::after{
+  content:'';position:absolute;inset:0;
+  background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-size:128px 128px;
+  opacity:0.5;
+  mix-blend-mode:overlay;
+}
+
+/* ── Main Container ── */
+.app-container{
+  position:relative;z-index:1;
+  max-width:460px;margin:0 auto;
+  padding:20px 16px 110px;
+}
+
+/* ── Header ── */
+.app-header{
+  text-align:center;padding:28px 0 24px;
+  animation:fadeUp 0.6s ease both;
+}
+.header-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;
+  background:var(--glass-strong);
+  border:1px solid var(--glass-border);
+  border-radius:40px;
+  font-size:0.75rem;font-weight:500;
+  color:var(--primary);
+  letter-spacing:0.03em;
+  margin-bottom:14px;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.header-badge svg{width:14px;height:14px}
+.app-header h1{
+  font-size:1.625rem;font-weight:700;
+  color:var(--text);
+  letter-spacing:-0.03em;
+  line-height:1.2;
+}
+.app-header p{
+  font-size:0.875rem;color:var(--text-secondary);
+  margin-top:6px;font-weight:400;
+}
+
+/* ── Glass Card Sections ── */
+.glass-section{
+  position:relative;
+  background:var(--card);
+  border:1px solid var(--card-border);
+  border-radius:20px;
+  padding:20px;
+  margin-bottom:14px;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  animation:fadeUp 0.5s ease both;
+}
+.schedule-section{z-index:5;}
+.glass-section:nth-child(1){animation-delay:0.05s}
+.glass-section:nth-child(2){animation-delay:0.1s}
+.glass-section:nth-child(3){animation-delay:0.15s}
+.glass-section:nth-child(4){animation-delay:0.2s}
+.glass-section:nth-child(5){animation-delay:0.25s}
+.section-title{
+  display:flex;align-items:center;gap:10px;
+  font-size:0.8125rem;font-weight:600;
+  color:var(--text-secondary);
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  margin-bottom:16px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--border);
+}
+.section-icon{
+  width:32px;height:32px;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.section-icon svg{width:16px;height:16px}
+.section-icon.blue{background:var(--primary-soft);color:var(--primary)}
+.section-icon.blue svg{stroke:var(--primary)}
+.section-icon.purple{background:var(--accent-soft);color:var(--accent)}
+.section-icon.purple svg{stroke:var(--accent)}
+.section-icon.green{background:var(--success-bg);color:var(--success)}
+.section-icon.green svg{stroke:var(--success)}
+.section-icon.pink{background:var(--error-bg);color:var(--error)}
+.section-icon.pink svg{stroke:var(--error)}
+
+/* ── Form Fields ── */
+.field-group{margin-bottom:14px}
+.field-group:last-child{margin-bottom:0}
+
+.field-label{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:0.8125rem;font-weight:500;
+  color:var(--text-secondary);
+  margin-bottom:8px;
+}
+.field-label .required{
+  color:var(--error);font-size:0.6875rem;font-weight:600;
+  background:var(--error-bg);
+  padding:1px 6px;
+  border-radius:6px;
+}
+
+.field-input{
+  width:100%;padding:13px 16px;
+  font-size:0.9375rem;font-family:var(--font);font-weight:400;
+  color:var(--text);
+  background:var(--glass);
+  border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);
+  outline:none;
+  transition:border-color var(--transition),box-shadow var(--transition),background var(--transition);
+  -webkit-appearance:none;
+  appearance:none;
+}
+.field-input:focus{
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px var(--primary-soft),0 0 20px rgba(108,138,255,0.08);
+  background:var(--glass-strong);
+}
+.field-input:hover:not(:focus){
+  border-color:rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.05);
+}
+.field-input.has-error{
+  border-color:var(--error);
+  box-shadow:0 0 0 3px var(--error-bg);
+}
+.field-input::placeholder{color:var(--text-muted);font-weight:400}
+
+textarea.field-input{
+  resize:none;min-height:110px;line-height:1.6;
+}
+
+.field-row{
+  display:flex;gap:12px;
+}
+.field-row .field-group{flex:1;margin-bottom:0}
+
+.field-error{
+  font-size:0.75rem;color:var(--error);
+  margin-top:6px;padding-left:2px;
+  display:none;
+  animation:fadeIn 0.2s ease;
+  font-weight:500;
+}
+.field-error.visible{display:block}
+
+.char-count{
+  font-size:0.6875rem;color:var(--text-muted);
+  text-align:right;margin-top:4px;
+  font-weight:500;font-variant-numeric:tabular-nums;
+  transition:color var(--transition);
+}
+.char-count.warn{color:#e0a040}
+.char-count.over{color:var(--error)}
+
+/* ── Custom Select ── */
+.custom-select{position:relative}
+.select-trigger{
+  width:100%;padding:13px 16px;
+  font-size:0.9375rem;font-family:var(--font);font-weight:400;
+  color:var(--text);
+  background:var(--glass);
+  border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;
+  transition:border-color var(--transition),box-shadow var(--transition),background var(--transition);
+  user-select:none;
+  -webkit-user-select:none;
+}
+.select-trigger:focus{
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px var(--primary-soft);
+}
+.select-trigger:hover:not(:focus){
+  border-color:rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.05);
+}
+.select-trigger.has-error{
+  border-color:var(--error);
+  box-shadow:0 0 0 3px var(--error-bg);
+}
+.select-trigger .placeholder{color:var(--text-muted)}
+.select-arrow{
+  width:18px;height:18px;
+  transition:transform var(--transition);
+  flex-shrink:0;
+  opacity:0.4;
+}
+.select-arrow svg{width:100%;height:100%;stroke:var(--text)}
+.custom-select.open .select-arrow{transform:rotate(180deg);opacity:0.7}
+
+.select-dropdown{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;
+  background:rgba(20,24,40,0.95);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-sm);
+  box-shadow:0 16px 48px rgba(0,0,0,0.4);
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  z-index:50;
+  overflow:hidden;
+  opacity:0;
+  transform:translateY(-6px) scale(0.98);
+  pointer-events:none;
+  transition:opacity 0.2s ease,transform 0.2s ease;
+}
+.custom-select.open .select-dropdown{
+  opacity:1;transform:translateY(0) scale(1);pointer-events:auto;
+}
+.select-option{
+  padding:13px 16px;font-size:0.9375rem;
+  cursor:pointer;color:var(--text-secondary);
+  transition:all 0.15s ease;
+  font-weight:400;
+}
+.select-option:hover,.select-option:focus{
+  background:var(--primary-soft);color:var(--text);
+}
+.select-option.active{
+  color:var(--primary);font-weight:600;background:var(--primary-soft);
+}
+.select-option:not(:last-child){border-bottom:1px solid var(--border)}
+
+/* ── iOS Drum Scroll Wheel Picker ── */
+.time-picker-wrapper{
+  margin-top:16px;
+  animation:fadeUp 0.35s ease both;
+}
+.time-picker-wrapper.hidden{display:none}
+
+.time-grid{
+  display:flex;gap:16px;
+  align-items:stretch;
+}
+.time-block{
+  flex:1;
+  background:var(--glass);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:10px 10px 8px;
+  text-align:center;
+  display:flex;flex-direction:column;align-items:center;
+}
+.time-block-label{
+  font-size:0.6875rem;font-weight:600;
+  color:var(--text-muted);
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  margin-bottom:12px;
+}
+
+/* Drum wheel container */
+.drum-picker{
+  display:flex;align-items:center;gap:1px;
+  position:relative;
+}
+.drum-sep{
+  font-size:1.125rem;font-weight:700;
+  color:var(--text-muted);
+  line-height:1;
+  padding:0 1px;
+  user-select:none;
+}
+
+/* Single wheel column */
+.drum-wheel{
+  position:relative;
+  width:42px;
+  height:90px;
+  overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom,
+    transparent 0%,
+    rgba(0,0,0,0.3) 20%,
+    black 38%,
+    black 62%,
+    rgba(0,0,0,0.3) 80%,
+    transparent 100%
+  );
+  mask-image:linear-gradient(to bottom,
+    transparent 0%,
+    rgba(0,0,0,0.3) 20%,
+    black 38%,
+    black 62%,
+    rgba(0,0,0,0.3) 80%,
+    transparent 100%
+  );
+  cursor:grab;
+  touch-action:none;
+}
+.drum-wheel:active{cursor:grabbing}
+
+/* Highlight band behind selected item */
+.drum-wheel::before{
+  content:'';
+  position:absolute;
+  left:2px;right:2px;
+  top:50%;
+  transform:translateY(-50%);
+  height:30px;
+  background:var(--primary-soft);
+  border:1px solid rgba(108,138,255,0.2);
+  border-radius:7px;
+  z-index:0;
+  pointer-events:none;
+}
+
+/* The scrollable inner track */
+.drum-track{
+  position:absolute;
+  left:0;right:0;
+  will-change:transform;
+  transition:transform 0.35s cubic-bezier(0.23,1,0.32,1);
+}
+.drum-track.snapping{
+  transition:transform 0.35s cubic-bezier(0.23,1,0.32,1);
+}
+.drum-track.dragging{
+  transition:none;
+}
+
+/* Individual item */
+.drum-item{
+  height:30px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
+  color:var(--text-secondary);
+  user-select:none;
+  -webkit-user-select:none;
+  position:relative;
+  z-index:1;
+  transition:color 0.2s ease, transform 0.2s ease;
+}
+.drum-item.active{
+  color:var(--text);
+  font-weight:700;
+  transform:scale(1.05);
+}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 24px;
+  font-size:0.9375rem;font-weight:600;font-family:var(--font);
+  border:none;border-radius:var(--radius-sm);
+  cursor:pointer;
+  transition:all var(--transition);
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  letter-spacing:-0.01em;
+}
+.btn:active{transform:scale(0.97)}
+.btn:disabled{opacity:0.45;cursor:not-allowed;transform:none}
+
+.btn-primary{
+  width:100%;
+  background:var(--primary);color:#fff;
+  box-shadow:0 4px 16px rgba(108,138,255,0.3),0 0 40px rgba(108,138,255,0.1);
+}
+.btn-primary:hover:not(:disabled){
+  box-shadow:0 6px 24px rgba(108,138,255,0.4),0 0 60px rgba(108,138,255,0.15);
+  transform:translateY(-1px);
+}
+
+.btn-secondary{
+  background:var(--glass-strong);color:var(--text);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.btn-secondary:hover:not(:disabled){
+  background:rgba(255,255,255,0.12);
+}
+
+.submit-area{
+  margin-top:20px;
+  animation:fadeUp 0.5s ease both;
+  animation-delay:0.3s;
+}
+
+/* ── Error Banner ── */
+.error-banner{
+  background:var(--error-bg);
+  border:1px solid var(--error-border);
+  border-radius:var(--radius-sm);
+  padding:14px 16px;
+  margin-bottom:14px;
+  display:none;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  animation:fadeIn 0.25s ease;
+}
+.error-banner.visible{display:flex;align-items:center;gap:10px}
+.error-banner svg{flex-shrink:0;width:18px;height:18px;stroke:var(--error)}
+.error-banner span{font-size:0.8125rem;color:var(--error);font-weight:500}
+
+/* ── Modal / Overlay ── */
+.modal-overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.3s ease;
+}
+.modal-overlay.active{opacity:1;pointer-events:auto}
+
+.modal-content{
+  width:100%;max-width:460px;
+  max-height:88vh;max-height:88dvh;
+  background:rgba(18,22,36,0.96);
+  border:1px solid var(--glass-border);
+  border-radius:24px 24px 0 0;
+  padding:0;
+  transform:translateY(100%);
+  transition:transform 0.4s cubic-bezier(0.32,0.72,0,1);
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+}
+.modal-overlay.active .modal-content{transform:translateY(0)}
+
+.modal-handle{
+  width:36px;height:4px;
+  background:rgba(255,255,255,0.15);
+  border-radius:2px;
+  margin:12px auto 0;
+  flex-shrink:0;
+}
+.modal-header{
+  padding:18px 22px 14px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.modal-header h2{
+  font-size:1.125rem;font-weight:700;color:var(--text);
+  letter-spacing:-0.02em;
+}
+.modal-body{
+  padding:18px 22px;
+  overflow-y:auto;
+  flex:1;
+  -webkit-overflow-scrolling:touch;
+}
+.modal-footer{
+  padding:14px 22px 22px;
+  display:flex;gap:10px;
+  border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.modal-footer .btn{flex:1}
+
+/* ── Preview Card ── */
+.preview-card{
+  background:var(--glass);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  overflow:hidden;
+}
+.preview-row{
+  padding:12px 16px;
+  display:flex;flex-direction:column;gap:3px;
+}
+.preview-row:not(:last-child){border-bottom:1px solid var(--border)}
+.preview-label{
+  font-size:0.6875rem;font-weight:600;
+  color:var(--text-muted);
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+}
+.preview-value{
+  font-size:0.9375rem;color:var(--text);font-weight:400;
+  word-break:break-word;
+  white-space:pre-wrap;
+  line-height:1.5;
+}
+
+/* ── Loader ── */
+.loader-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(12,15,26,0.9);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:20px;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.3s ease;
+}
+.loader-overlay.active{opacity:1;pointer-events:auto}
+
+.spinner{
+  width:44px;height:44px;
+  border:2.5px solid var(--border);
+  border-top-color:var(--primary);
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.loader-text{
+  font-size:0.9375rem;color:var(--text-secondary);font-weight:500;
+}
+
+/* ── Success Screen ── */
+.success-screen{
+  position:fixed;inset:0;z-index:200;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:16px;padding:32px;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.4s ease;
+}
+.success-screen.active{opacity:1;pointer-events:auto}
+
+.success-icon{
+  width:80px;height:80px;
+  background:var(--success-bg);
+  border:1px solid rgba(94,228,160,0.2);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  animation:scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow:0 0 40px rgba(94,228,160,0.15);
+}
+.success-icon svg{width:36px;height:36px;stroke:var(--success)}
+
+.success-screen h2{
+  font-size:1.375rem;font-weight:700;color:var(--text);
+  text-align:center;letter-spacing:-0.02em;
+}
+.success-screen p{
+  font-size:0.9375rem;color:var(--text-secondary);
+  text-align:center;max-width:280px;
+  font-weight:400;
+}
+
+/* ── Animations ── */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes fadeIn{
+  from{opacity:0}to{opacity:1}
+}
+@keyframes scaleIn{
+  from{transform:scale(0.5);opacity:0}
+  to{transform:scale(1);opacity:1}
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+
+/* ── iOS fixes ── */
+@supports(-webkit-touch-callout:none){
+  body{min-height:-webkit-fill-available}
+}
+</style>
+</head>
+<body>
+
+<!-- Animated Orb Background -->
+<div class="bg-canvas" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="orb orb-4"></div>
+  <div class="orb orb-5"></div>
+</div>
+
+<!-- Main App -->
+<div class="app-container" role="main">
+  <header class="app-header">
+    <h1>Новая вакансия</h1>
+    <p>Заполните информацию для публикации</p>
+  </header>
+
+  <form id="vacancyForm" novalidate autocomplete="off">
+    <!-- Error Banner -->
+    <div class="error-banner" id="errorBanner" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errorBannerText">Проверьте правильность заполнения полей</span>
+    </div>
+
+    <!-- Section 1: Basic Info -->
+    <div class="glass-section">
+      <div class="section-title">
+        <div class="section-icon blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+        </div>
+        Основная информация
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="fieldTitle">
+          Название вакансии
+          <span class="required" aria-hidden="true">обяз.</span>
+        </label>
+        <input type="text" id="fieldTitle" class="field-input" name="title" placeholder="Например: Повар в ресторан" maxlength="100" aria-required="true">
+        <div class="char-count" id="countTitle" aria-live="polite"></div>
+        <div class="field-error" id="errorTitle" role="alert"></div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="fieldJobTitle">
+            Должность
+            <span class="required" aria-hidden="true">обяз.</span>
+          </label>
+          <input type="text" id="fieldJobTitle" class="field-input" name="jobTitle" placeholder="Шеф-повар" maxlength="80" aria-required="true">
+          <div class="field-error" id="errorJobTitle" role="alert"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="fieldSalary">
+            Зарплата
+            <span class="required" aria-hidden="true">обяз.</span>
+          </label>
+          <input type="text" id="fieldSalary" class="field-input" name="salary" placeholder="50 000" maxlength="30" inputmode="numeric" aria-required="true">
+          <div class="field-error" id="errorSalary" role="alert"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Location -->
+    <div class="glass-section">
+      <div class="section-title">
+        <div class="section-icon purple">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        Местоположение
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="fieldCity">
+            Город
+            <span class="required" aria-hidden="true">обяз.</span>
+          </label>
+          <input type="text" id="fieldCity" class="field-input" name="city" placeholder="Москва" maxlength="60" aria-required="true">
+          <div class="field-error" id="errorCity" role="alert"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="fieldAddress">
+            Адрес
+            <span class="required" aria-hidden="true">обяз.</span>
+          </label>
+          <input type="text" id="fieldAddress" class="field-input" name="address" placeholder="ул. Примерная, 1" maxlength="150" aria-required="true">
+          <div class="field-error" id="errorAddress" role="alert"></div>
+        </div>
+      </div>
+      <div class="char-count" id="countAddress" aria-live="polite"></div>
+    </div>
+
+    <!-- Section 3: Schedule (MOVED ABOVE Description) -->
+    <div class="glass-section schedule-section">
+      <div class="section-title">
+        <div class="section-icon pink">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        График работы
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" id="scheduleLabel">
+          Тип графика
+          <span class="required" aria-hidden="true">обяз.</span>
+        </label>
+        <div class="custom-select" id="scheduleSelect">
+          <div class="select-trigger" tabindex="0" role="combobox" aria-labelledby="scheduleLabel" aria-expanded="false" aria-haspopup="listbox" id="scheduleTrigger">
+            <span class="placeholder">Выберите график</span>
+            <span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+          </div>
+          <div class="select-dropdown" role="listbox" id="scheduleDropdown">
+            <div class="select-option" role="option" data-value="fulltime" tabindex="-1">Полный день</div>
+            <div class="select-option" role="option" data-value="shift" tabindex="-1">Сменный график</div>
+            <div class="select-option" role="option" data-value="remote" tabindex="-1">Удалённая работа</div>
+            <div class="select-option" role="option" data-value="flexible" tabindex="-1">Гибкий график</div>
+            <div class="select-option" role="option" data-value="custom" tabindex="-1">Свой график</div>
+          </div>
+        </div>
+        <div class="field-error" id="errorSchedule" role="alert"></div>
+      </div>
+
+      <!-- iOS-style Drum Scroll Time Pickers -->
+      <div class="time-picker-wrapper hidden" id="customTimeRow">
+        <div class="time-grid">
+          <!-- Start Time -->
+          <div class="time-block">
+            <div class="time-block-label">Начало</div>
+            <div class="drum-picker">
+              <div class="drum-wheel" id="wheelStartH" data-key="startHour">
+                <div class="drum-track" id="trackStartH"></div>
+              </div>
+              <span class="drum-sep">:</span>
+              <div class="drum-wheel" id="wheelStartM" data-key="startMinute">
+                <div class="drum-track" id="trackStartM"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- End Time -->
+          <div class="time-block">
+            <div class="time-block-label">Конец</div>
+            <div class="drum-picker">
+              <div class="drum-wheel" id="wheelEndH" data-key="endHour">
+                <div class="drum-track" id="trackEndH"></div>
+              </div>
+              <span class="drum-sep">:</span>
+              <div class="drum-wheel" id="wheelEndM" data-key="endMinute">
+                <div class="drum-track" id="trackEndM"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="field-error" id="errorTime" role="alert"></div>
+      </div>
+    </div>
+
+    <!-- Section 4: Description (MOVED BELOW Schedule) -->
+    <div class="glass-section">
+      <div class="section-title">
+        <div class="section-icon green">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        Описание вакансии
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="fieldDescription">
+          Подробное описание
+          <span class="required" aria-hidden="true">обяз.</span>
+        </label>
+        <textarea id="fieldDescription" class="field-input" name="description" placeholder="Опишите обязанности, требования и условия работы..." maxlength="2000" rows="5" aria-required="true"></textarea>
+        <div class="char-count" id="countDescription" aria-live="polite"></div>
+        <div class="field-error" id="errorDescription" role="alert"></div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="submit-area">
+      <button type="submit" class="btn btn-primary" id="submitBtn">
+        Предпросмотр вакансии
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+  <div class="modal-content">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 id="previewTitle">Предпросмотр вакансии</h2>
+    </div>
+    <div class="modal-body" id="previewBody"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="btnEdit">Редактировать</button>
+      <button type="button" class="btn btn-primary" id="btnConfirm">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loader -->
+<div class="loader-overlay" id="loaderOverlay" role="status" aria-live="polite">
+  <div class="spinner"></div>
+  <span class="loader-text">Отправка...</span>
+</div>
+
+<!-- Success Screen -->
+<div class="success-screen" id="successScreen">
+  <div class="success-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <h2>Вакансия опубликована</h2>
+  <p>Ваша вакансия успешно отправлена и скоро появится в ленте</p>
+  <button type="button" class="btn btn-secondary" id="btnReset" style="margin-top:16px;width:auto;padding:12px 32px">Создать ещё</button>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* === STATE === */
+  var state = {
+    formData: {
+      title: '',
+      jobTitle: '',
+      salary: '',
+      city: '',
+      address: '',
+      description: '',
+      schedule: '',
+      scheduleLabel: '',
+      startHour: 9,
+      startMinute: 0,
+      endHour: 18,
+      endMinute: 0
+    },
+    errors: {},
+    isSubmitting: false,
+    telegramUser: null,
+    isTelegram: false
+  };
+
+  var API_ENDPOINT = 'https://example.com/api';
+  var DEBOUNCE_DELAY = 300;
+  var debounceTimers = {};
+  var MINUTES = [0, 15, 30, 45];
+  var ITEM_HEIGHT = 30;
+
+  /* === DOM CACHE === */
+  var dom = {
+    form: null,
+    fields: {},
+    charCounts: {},
+    errorEls: {},
+    errorBanner: null,
+    errorBannerText: null,
+    scheduleSelect: null,
+    scheduleTrigger: null,
+    scheduleDropdown: null,
+    customTimeRow: null,
+    submitBtn: null,
+    previewModal: null,
+    previewBody: null,
+    btnEdit: null,
+    btnConfirm: null,
+    loaderOverlay: null,
+    successScreen: null,
+    btnReset: null
+  };
+
+  /* === DRUM WHEELS STATE === */
+  var wheels = {};
+
+  /* === SCHEDULE OPTIONS === */
+  var SCHEDULE_MAP = {
+    fulltime: 'Полный день',
+    shift: 'Сменный график',
+    remote: 'Удалённая работа',
+    flexible: 'Гибкий график',
+    custom: 'Свой график'
+  };
+
+  /* === VALIDATION RULES === */
+  var RULES = {
+    title:       { min: 3, max: 100, label: 'Название вакансии' },
+    jobTitle:    { min: 2, max: 80,  label: 'Должность' },
+    salary:      { min: 1, max: 30,  label: 'Зарплата', pattern: /^\d[\d\s]*(\s*[-\u2013\u2014]\s*\d[\d\s]*)?$/ },
+    city:        { min: 2, max: 60,  label: 'Город' },
+    address:     { min: 3, max: 150, label: 'Адрес' },
+    description: { min: 10, max: 2000, label: 'Описание' }
+  };
+
+  /* === INIT === */
+  function init() {
+    cacheDom();
+    initTelegram();
+    buildDrumWheels();
+    bindEvents();
+  }
+
+  function cacheDom() {
+    dom.form = document.getElementById('vacancyForm');
+    dom.errorBanner = document.getElementById('errorBanner');
+    dom.errorBannerText = document.getElementById('errorBannerText');
+    dom.scheduleSelect = document.getElementById('scheduleSelect');
+    dom.scheduleTrigger = document.getElementById('scheduleTrigger');
+    dom.scheduleDropdown = document.getElementById('scheduleDropdown');
+    dom.customTimeRow = document.getElementById('customTimeRow');
+    dom.submitBtn = document.getElementById('submitBtn');
+    dom.previewModal = document.getElementById('previewModal');
+    dom.previewBody = document.getElementById('previewBody');
+    dom.btnEdit = document.getElementById('btnEdit');
+    dom.btnConfirm = document.getElementById('btnConfirm');
+    dom.loaderOverlay = document.getElementById('loaderOverlay');
+    dom.successScreen = document.getElementById('successScreen');
+    dom.btnReset = document.getElementById('btnReset');
+
+    var fieldNames = ['title','jobTitle','salary','city','address','description'];
+    var fieldIds = ['fieldTitle','fieldJobTitle','fieldSalary','fieldCity','fieldAddress','fieldDescription'];
+    var countIds = ['countTitle',null,null,null,'countAddress','countDescription'];
+    var errorIds = ['errorTitle','errorJobTitle','errorSalary','errorCity','errorAddress','errorDescription'];
+
+    for (var i = 0; i < fieldNames.length; i++) {
+      dom.fields[fieldNames[i]] = document.getElementById(fieldIds[i]);
+      dom.errorEls[fieldNames[i]] = document.getElementById(errorIds[i]);
+      if (countIds[i]) dom.charCounts[fieldNames[i]] = document.getElementById(countIds[i]);
+    }
+    dom.errorEls.schedule = document.getElementById('errorSchedule');
+    dom.errorEls.time = document.getElementById('errorTime');
+  }
+
+  /* === TELEGRAM === */
+  function initTelegram() {
+    try {
+      if (window.Telegram && window.Telegram.WebApp) {
+        var tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        state.isTelegram = true;
+
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+          state.telegramUser = tg.initDataUnsafe.user;
+        }
+
+        if (tg.themeParams) {
+          var tp = tg.themeParams;
+          if (tp.bg_color) document.documentElement.style.setProperty('--bg', tp.bg_color);
+          if (tp.text_color) document.documentElement.style.setProperty('--text', tp.text_color);
+          if (tp.hint_color) document.documentElement.style.setProperty('--text-secondary', tp.hint_color);
+          if (tp.button_color) document.documentElement.style.setProperty('--primary', tp.button_color);
+        }
+      }
+    } catch (e) {
+      state.isTelegram = false;
+    }
+  }
+
+  /* ===================================================
+     iOS DRUM SCROLL WHEEL PICKER
+     =================================================== */
+  function buildDrumWheels() {
+    // Hours 0-23
+    var hours = [];
+    for (var h = 0; h < 24; h++) hours.push(h);
+    // Minutes: 0,15,30,45
+    var mins = MINUTES;
+
+    initWheel('wheelStartH', 'trackStartH', hours, state.formData.startHour, 'startHour', true);
+    initWheel('wheelStartM', 'trackStartM', mins, state.formData.startMinute, 'startMinute', false);
+    initWheel('wheelEndH', 'trackEndH', hours, state.formData.endHour, 'endHour', true);
+    initWheel('wheelEndM', 'trackEndM', mins, state.formData.endMinute, 'endMinute', false);
+  }
+
+  function initWheel(wheelId, trackId, values, initialValue, stateKey, isHour) {
+    var wheelEl = document.getElementById(wheelId);
+    var trackEl = document.getElementById(trackId);
+    if (!wheelEl || !trackEl) return;
+
+    // Populate items
+    // Add padding items top and bottom (1 blank slot each side so selected is centered)
+    var padCount = 1;
+    var html = '';
+    for (var p = 0; p < padCount; p++) {
+      html += '<div class="drum-item drum-pad" aria-hidden="true"></div>';
+    }
+    for (var i = 0; i < values.length; i++) {
+      var display = isHour ? padZero(values[i]) : padZero(values[i]);
+      html += '<div class="drum-item" data-value="' + values[i] + '">' + display + '</div>';
+    }
+    for (var p2 = 0; p2 < padCount; p2++) {
+      html += '<div class="drum-item drum-pad" aria-hidden="true"></div>';
+    }
+    trackEl.innerHTML = html;
+
+    // Find initial index
+    var selectedIndex = 0;
+    for (var si = 0; si < values.length; si++) {
+      if (values[si] === initialValue) { selectedIndex = si; break; }
+    }
+
+    var w = {
+      el: wheelEl,
+      track: trackEl,
+      values: values,
+      padCount: padCount,
+      stateKey: stateKey,
+      currentIndex: selectedIndex,
+      offset: 0,
+      startY: 0,
+      startOffset: 0,
+      isDragging: false,
+      velocity: 0,
+      lastY: 0,
+      lastTime: 0,
+      momentumRaf: null
+    };
+
+    // Position to initial
+    w.offset = -selectedIndex * ITEM_HEIGHT;
+    trackEl.style.transform = 'translateY(' + w.offset + 'px)';
+    trackEl.classList.add('snapping');
+    highlightActive(w);
+
+    // Bind pointer events
+    wheelEl.addEventListener('pointerdown', function(e) { onPointerDown(e, w); });
+    wheelEl.addEventListener('pointermove', function(e) { onPointerMove(e, w); });
+    wheelEl.addEventListener('pointerup', function(e) { onPointerUp(e, w); });
+    wheelEl.addEventListener('pointercancel', function(e) { onPointerUp(e, w); });
+
+    // Mouse wheel support
+    wheelEl.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      var dir = e.deltaY > 0 ? 1 : -1;
+      var newIndex = clampIndex(w.currentIndex + dir, w.values.length);
+      snapTo(w, newIndex);
+    }, { passive: false });
+
+    wheels[stateKey] = w;
+  }
+
+  function onPointerDown(e, w) {
+    if (w.momentumRaf) cancelAnimationFrame(w.momentumRaf);
+    w.isDragging = true;
+    w.startY = e.clientY;
+    w.startOffset = w.offset;
+    w.lastY = e.clientY;
+    w.lastTime = Date.now();
+    w.velocity = 0;
+    w.track.classList.remove('snapping');
+    w.track.classList.add('dragging');
+    w.el.setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e, w) {
+    if (!w.isDragging) return;
+    var dy = e.clientY - w.startY;
+    w.offset = w.startOffset + dy;
+
+    // Clamp with rubber band
+    var minOffset = -(w.values.length - 1) * ITEM_HEIGHT;
+    var maxOffset = 0;
+    if (w.offset > maxOffset) {
+      w.offset = maxOffset + (w.offset - maxOffset) * 0.3;
+    } else if (w.offset < minOffset) {
+      w.offset = minOffset + (w.offset - minOffset) * 0.3;
+    }
+
+    w.track.style.transform = 'translateY(' + w.offset + 'px)';
+
+    // Track velocity
+    var now = Date.now();
+    var dt = now - w.lastTime;
+    if (dt > 0) {
+      w.velocity = (e.clientY - w.lastY) / dt;
+    }
+    w.lastY = e.clientY;
+    w.lastTime = now;
+
+    highlightNearest(w);
+  }
+
+  function onPointerUp(e, w) {
+    if (!w.isDragging) return;
+    w.isDragging = false;
+    w.track.classList.remove('dragging');
+
+    // Apply momentum
+    var momentum = w.velocity * 120;
+    var targetOffset = w.offset + momentum;
+
+    // Snap to nearest
+    var nearestIndex = Math.round(-targetOffset / ITEM_HEIGHT);
+    nearestIndex = clampIndex(nearestIndex, w.values.length);
+    snapTo(w, nearestIndex);
+  }
+
+  function snapTo(w, index) {
+    w.currentIndex = index;
+    w.offset = -index * ITEM_HEIGHT;
+    w.track.classList.add('snapping');
+    w.track.style.transform = 'translateY(' + w.offset + 'px)';
+    highlightActive(w);
+
+    // Update state
+    state.formData[w.stateKey] = w.values[index];
+    if (state.errors.time) clearFieldError('time');
+  }
+
+  function highlightActive(w) {
+    var items = w.track.querySelectorAll('.drum-item:not(.drum-pad)');
+    items.forEach(function(item, i) {
+      item.classList.toggle('active', i === w.currentIndex);
+    });
+  }
+
+  function highlightNearest(w) {
+    var nearestIndex = Math.round(-w.offset / ITEM_HEIGHT);
+    nearestIndex = clampIndex(nearestIndex, w.values.length);
+    var items = w.track.querySelectorAll('.drum-item:not(.drum-pad)');
+    items.forEach(function(item, i) {
+      item.classList.toggle('active', i === nearestIndex);
+    });
+  }
+
+  function clampIndex(idx, len) {
+    return Math.max(0, Math.min(idx, len - 1));
+  }
+
+  function resetWheels() {
+    var defaults = { startHour: 9, startMinute: 0, endHour: 18, endMinute: 0 };
+    Object.keys(defaults).forEach(function(key) {
+      var w = wheels[key];
+      if (!w) return;
+      var val = defaults[key];
+      var idx = 0;
+      for (var i = 0; i < w.values.length; i++) {
+        if (w.values[i] === val) { idx = i; break; }
+      }
+      snapTo(w, idx);
+    });
+  }
+
+  /* === EVENTS === */
+  function bindEvents() {
+    Object.keys(dom.fields).forEach(function(name) {
+      var el = dom.fields[name];
+      el.addEventListener('input', function() {
+        debounce(name, function() {
+          state.formData[name] = el.value.trim();
+          updateCharCount(name);
+          if (state.errors[name]) validateField(name);
+        });
+      }, { passive: true });
+
+      el.addEventListener('focus', function() {
+        clearFieldError(name);
+      }, { passive: true });
+    });
+
+    dom.scheduleTrigger.addEventListener('click', toggleSelect);
+    dom.scheduleTrigger.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSelect(); }
+      if (e.key === 'Escape') closeSelect();
+    });
+
+    var options = dom.scheduleDropdown.querySelectorAll('.select-option');
+    options.forEach(function(opt) {
+      opt.addEventListener('click', function() { selectSchedule(opt.dataset.value); });
+      opt.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSchedule(opt.dataset.value); }
+      });
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!dom.scheduleSelect.contains(e.target)) closeSelect();
+    }, { passive: true });
+
+    dom.form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      handleSubmit();
+    });
+
+    dom.btnEdit.addEventListener('click', closePreview);
+    dom.btnConfirm.addEventListener('click', confirmSubmit);
+    dom.btnReset.addEventListener('click', resetForm);
+
+    dom.previewModal.addEventListener('click', function(e) {
+      if (e.target === dom.previewModal) closePreview();
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        if (dom.previewModal.classList.contains('active')) closePreview();
+        if (dom.scheduleSelect.classList.contains('open')) closeSelect();
+      }
+    });
+  }
+
+  /* === DEBOUNCE === */
+  function debounce(key, fn) {
+    if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
+    debounceTimers[key] = setTimeout(fn, DEBOUNCE_DELAY);
+  }
+
+  /* === CHAR COUNT === */
+  function updateCharCount(name) {
+    var countEl = dom.charCounts[name];
+    if (!countEl) return;
+    var rule = RULES[name];
+    var len = dom.fields[name].value.length;
+    countEl.textContent = len + ' / ' + rule.max;
+    countEl.className = 'char-count';
+    if (len > rule.max * 0.9) countEl.classList.add('warn');
+    if (len > rule.max) countEl.classList.add('over');
+  }
+
+  /* === CUSTOM SELECT === */
+  function toggleSelect() {
+    var isOpen = dom.scheduleSelect.classList.toggle('open');
+    dom.scheduleTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
+      var active = dom.scheduleDropdown.querySelector('.select-option.active');
+      if (active) active.focus();
+      else dom.scheduleDropdown.querySelector('.select-option').focus();
+    }
+  }
+
+  function closeSelect() {
+    dom.scheduleSelect.classList.remove('open');
+    dom.scheduleTrigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function selectSchedule(value) {
+    state.formData.schedule = value;
+    state.formData.scheduleLabel = SCHEDULE_MAP[value];
+
+    dom.scheduleTrigger.innerHTML =
+      '<span>' + escapeHtml(SCHEDULE_MAP[value]) + '</span>' +
+      '<span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>';
+
+    dom.scheduleDropdown.querySelectorAll('.select-option').forEach(function(o) {
+      o.classList.toggle('active', o.dataset.value === value);
+      o.setAttribute('aria-selected', o.dataset.value === value ? 'true' : 'false');
+    });
+
+    toggleCustomSchedule(value === 'custom');
+    closeSelect();
+    clearFieldError('schedule');
+  }
+
+  function toggleCustomSchedule(show) {
+    dom.customTimeRow.classList.toggle('hidden', !show);
+  }
+
+  /* === VALIDATION === */
+  function validateForm() {
+    state.errors = {};
+    Object.keys(RULES).forEach(function(name) {
+      validateField(name);
+    });
+
+    if (!state.formData.schedule) {
+      state.errors.schedule = 'Выберите график работы';
+    }
+
+    if (state.formData.schedule === 'custom') {
+      var startTotal = state.formData.startHour * 60 + state.formData.startMinute;
+      var endTotal = state.formData.endHour * 60 + state.formData.endMinute;
+      if (endTotal <= startTotal) {
+        state.errors.time = 'Время окончания должно быть позже начала';
+      }
+    }
+
+    renderErrors();
+    return Object.keys(state.errors).length === 0;
+  }
+
+  function validateField(name) {
+    var rule = RULES[name];
+    if (!rule) return;
+    var val = dom.fields[name].value.trim();
+
+    if (!val) {
+      state.errors[name] = 'Поле "' + rule.label + '" обязательно';
+      showFieldError(name, state.errors[name]);
+      return;
+    }
+    if (val.length < rule.min) {
+      state.errors[name] = 'Минимум ' + rule.min + ' символов';
+      showFieldError(name, state.errors[name]);
+      return;
+    }
+    if (val.length > rule.max) {
+      state.errors[name] = 'Максимум ' + rule.max + ' символов';
+      showFieldError(name, state.errors[name]);
+      return;
+    }
+    if (rule.pattern && !rule.pattern.test(val)) {
+      state.errors[name] = 'Введите число или диапазон (например 40000-60000)';
+      showFieldError(name, state.errors[name]);
+      return;
+    }
+
+    delete state.errors[name];
+    clearFieldError(name);
+  }
+
+  function showFieldError(name, msg) {
+    var el = dom.errorEls[name];
+    if (el) { el.textContent = msg; el.classList.add('visible'); }
+    var input = dom.fields[name] || (name === 'schedule' ? dom.scheduleTrigger : null);
+    if (input) input.classList.add('has-error');
+  }
+
+  function clearFieldError(name) {
+    var el = dom.errorEls[name];
+    if (el) { el.textContent = ''; el.classList.remove('visible'); }
+    var input = dom.fields[name] || (name === 'schedule' ? dom.scheduleTrigger : null);
+    if (input) input.classList.remove('has-error');
+  }
+
+  function clearErrors() {
+    Object.keys(dom.errorEls).forEach(function(name) {
+      clearFieldError(name);
+    });
+    dom.errorBanner.classList.remove('visible');
+  }
+
+  function renderErrors() {
+    var keys = Object.keys(state.errors);
+    if (keys.length > 0) {
+      dom.errorBanner.classList.add('visible');
+      dom.errorBannerText.textContent = 'Исправьте ошибки в ' + keys.length + ' полях';
+      scrollToFirstError(keys[0]);
+    } else {
+      dom.errorBanner.classList.remove('visible');
+    }
+  }
+
+  function scrollToFirstError(name) {
+    var el = dom.fields[name] || dom.scheduleTrigger;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      requestAnimationFrame(function() { el.focus(); });
+    }
+  }
+
+  /* === SUBMIT FLOW === */
+  function handleSubmit() {
+    Object.keys(dom.fields).forEach(function(name) {
+      state.formData[name] = dom.fields[name].value.trim();
+    });
+    if (!validateForm()) return;
+    renderPreview();
+    openPreview();
+  }
+
+  /* === PREVIEW === */
+  function renderPreview() {
+    var d = state.formData;
+    var scheduleText = d.scheduleLabel || '';
+    if (d.schedule === 'custom') {
+      scheduleText += ': ' + formatTime(d.startHour, d.startMinute) + ' \u2014 ' + formatTime(d.endHour, d.endMinute);
+    }
+
+    var rows = [
+      { label: 'Название', value: d.title },
+      { label: 'Должность', value: d.jobTitle },
+      { label: 'Зарплата', value: d.salary + ' \u20BD' },
+      { label: 'Город', value: d.city },
+      { label: 'Адрес', value: d.address },
+      { label: 'График', value: scheduleText },
+      { label: 'Описание', value: d.description }
+    ];
+
+    var html = '<div class="preview-card">';
+    rows.forEach(function(r) {
+      html += '<div class="preview-row">' +
+        '<span class="preview-label">' + escapeHtml(r.label) + '</span>' +
+        '<span class="preview-value">' + escapeHtml(r.value) + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+    dom.previewBody.innerHTML = html;
+  }
+
+  function openPreview() {
+    dom.previewModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    dom.btnEdit.focus();
+  }
+
+  function closePreview() {
+    dom.previewModal.classList.remove('active');
+    document.body.style.overflow = '';
+    dom.submitBtn.focus();
+  }
+
+  /* === CONFIRM & SEND === */
+  function confirmSubmit() {
+    if (state.isSubmitting) return;
+    closePreview();
+    sendData();
+  }
+
+  function sendData() {
+    state.isSubmitting = true;
+    dom.submitBtn.disabled = true;
+    dom.loaderOverlay.classList.add('active');
+
+    var d = state.formData;
+    var payload = {
+      title: d.title,
+      jobTitle: d.jobTitle,
+      salary: d.salary,
+      city: d.city,
+      address: d.address,
+      description: d.description,
+      schedule: d.schedule,
+      scheduleLabel: d.scheduleLabel
+    };
+
+    if (d.schedule === 'custom') {
+      payload.startTime = formatTime(d.startHour, d.startMinute);
+      payload.endTime = formatTime(d.endHour, d.endMinute);
+    }
+
+    if (state.telegramUser) {
+      payload.telegramUser = state.telegramUser;
+    }
+
+    var controller = new AbortController();
+    var timeout = setTimeout(function() { controller.abort(); }, 15000);
+
+    fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    })
+    .then(function(res) {
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error('Server error: ' + res.status);
+      return res.json();
+    })
+    .then(function() {
+      showSuccess();
+    })
+    .catch(function(err) {
+      showErrorBanner(err.name === 'AbortError' ? 'Время ожидания истекло. Попробуйте снова.' : 'Ошибка отправки. Попробуйте позже.');
+    })
+    .finally(function() {
+      state.isSubmitting = false;
+      dom.submitBtn.disabled = false;
+      dom.loaderOverlay.classList.remove('active');
+    });
+  }
+
+  function showSuccess() {
+    dom.successScreen.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    if (state.isTelegram) {
+      try {
+        window.Telegram.WebApp.MainButton.setText('Готово');
+        window.Telegram.WebApp.MainButton.show();
+        window.Telegram.WebApp.MainButton.onClick(function() {
+          window.Telegram.WebApp.close();
+        });
+      } catch (e) {}
+    }
+  }
+
+  function showErrorBanner(msg) {
+    dom.errorBanner.classList.add('visible');
+    dom.errorBannerText.textContent = msg;
+    dom.errorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  /* === RESET === */
+  function resetForm() {
+    dom.successScreen.classList.remove('active');
+    document.body.style.overflow = '';
+
+    state.formData = {
+      title: '', jobTitle: '', salary: '', city: '',
+      address: '', description: '', schedule: '', scheduleLabel: '',
+      startHour: 9, startMinute: 0, endHour: 18, endMinute: 0
+    };
+    state.errors = {};
+
+    Object.keys(dom.fields).forEach(function(name) {
+      dom.fields[name].value = '';
+    });
+
+    dom.scheduleTrigger.innerHTML =
+      '<span class="placeholder">Выберите график</span>' +
+      '<span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>';
+
+    dom.scheduleDropdown.querySelectorAll('.select-option').forEach(function(o) {
+      o.classList.remove('active');
+      o.removeAttribute('aria-selected');
+    });
+
+    dom.customTimeRow.classList.add('hidden');
+    clearErrors();
+
+    Object.keys(dom.charCounts).forEach(function(name) {
+      dom.charCounts[name].textContent = '';
+    });
+
+    resetWheels();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    dom.fields.title.focus();
+
+    if (state.isTelegram) {
+      try { window.Telegram.WebApp.MainButton.hide(); } catch (e) {}
+    }
+  }
+
+  /* === UTILS === */
+  function padZero(n) { return n < 10 ? '0' + n : '' + n; }
+  function formatTime(h, m) { return padZero(h) + ':' + padZero(m); }
+  function escapeHtml(str) {
+    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(str).replace(/[&<>"']/g, function(c) { return map[c]; });
+  }
+
+  /* === BOOT === */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>
