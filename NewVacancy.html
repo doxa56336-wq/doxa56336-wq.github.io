@@ -11,21 +11,21 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#000000;
+  --bg:#0c0f1a;
   --card:rgba(255,255,255,0.06);
   --card-border:rgba(255,255,255,0.1);
   --card-hover:rgba(255,255,255,0.09);
   --glass:rgba(255,255,255,0.04);
   --glass-strong:rgba(255,255,255,0.08);
-  --glass-border:rgba(255,255,255,0.12);
+  --glass-border:rgb(47 68 143 / 36%);
   --primary:#6c8aff;
   --primary-soft:rgba(108,138,255,0.15);
   --primary-glow:rgba(108,138,255,0.3);
   --accent:#a78bfa;
   --accent-soft:rgba(167,139,250,0.12);
   --text:#f0f0f5;
-  --text-secondary:rgba(240,240,245,0.5);
-  --text-muted:rgba(240,240,245,0.3);
+  --text-secondary:rgba(240,240,245,0.6);
+  --text-muted:rgba(240,240,245,0.4);
   --border:rgba(255,255,255,0.08);
   --error:#ff6b8a;
   --error-bg:rgba(255,107,138,0.1);
@@ -305,8 +305,8 @@ textarea.field-input{
 
 .select-dropdown{
   position:absolute;top:calc(100% + 6px);left:0;right:0;
-  background:rgba(20,24,40,0.95);
-  border:1px solid var(--glass-border);
+  background:rgb(37 41 53);
+  border:2px solid var(--glass-border);
   border-radius:var(--radius-sm);
   box-shadow:0 16px 48px rgba(0,0,0,0.4);
   backdrop-filter:blur(24px);
@@ -679,13 +679,7 @@ textarea.field-input{
 <body>
 
 <!-- Animated Orb Background -->
-<div class="bg-canvas" aria-hidden="true">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-  <div class="orb orb-4"></div>
-  <div class="orb orb-5"></div>
-</div>
+
 
 <!-- Main App -->
 <div class="app-container" role="main">
@@ -1103,10 +1097,6 @@ textarea.field-input{
     highlightActive(w);
 
     // Bind pointer events
-    wheelEl.addEventListener('pointerdown', function(e) { onPointerDown(e, w); });
-    wheelEl.addEventListener('pointermove', function(e) { onPointerMove(e, w); });
-    wheelEl.addEventListener('pointerup', function(e) { onPointerUp(e, w); });
-    wheelEl.addEventListener('pointercancel', function(e) { onPointerUp(e, w); });
 
     // Mouse wheel support
     wheelEl.addEventListener('wheel', function(e) {
@@ -1119,61 +1109,9 @@ textarea.field-input{
     wheels[stateKey] = w;
   }
 
-  function onPointerDown(e, w) {
-    if (w.momentumRaf) cancelAnimationFrame(w.momentumRaf);
-    w.isDragging = true;
-    w.startY = e.clientY;
-    w.startOffset = w.offset;
-    w.lastY = e.clientY;
-    w.lastTime = Date.now();
-    w.velocity = 0;
-    w.track.classList.remove('snapping');
-    w.track.classList.add('dragging');
-    w.el.setPointerCapture(e.pointerId);
-  }
 
-  function onPointerMove(e, w) {
-    if (!w.isDragging) return;
-    var dy = e.clientY - w.startY;
-    w.offset = w.startOffset + dy;
 
-    // Clamp with rubber band
-    var minOffset = -(w.values.length - 1) * ITEM_HEIGHT;
-    var maxOffset = 0;
-    if (w.offset > maxOffset) {
-      w.offset = maxOffset + (w.offset - maxOffset) * 0.3;
-    } else if (w.offset < minOffset) {
-      w.offset = minOffset + (w.offset - minOffset) * 0.3;
-    }
 
-    w.track.style.transform = 'translateY(' + w.offset + 'px)';
-
-    // Track velocity
-    var now = Date.now();
-    var dt = now - w.lastTime;
-    if (dt > 0) {
-      w.velocity = (e.clientY - w.lastY) / dt;
-    }
-    w.lastY = e.clientY;
-    w.lastTime = now;
-
-    highlightNearest(w);
-  }
-
-  function onPointerUp(e, w) {
-    if (!w.isDragging) return;
-    w.isDragging = false;
-    w.track.classList.remove('dragging');
-
-    // Apply momentum
-    var momentum = w.velocity * 120;
-    var targetOffset = w.offset + momentum;
-
-    // Snap to nearest
-    var nearestIndex = Math.round(-targetOffset / ITEM_HEIGHT);
-    nearestIndex = clampIndex(nearestIndex, w.values.length);
-    snapTo(w, nearestIndex);
-  }
 
   function snapTo(w, index) {
     w.currentIndex = index;
