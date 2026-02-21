@@ -54,57 +54,6 @@ body{
   -moz-osx-font-smoothing:grayscale;
 }
 
-/* ── Animated Orb Background ── */
-.bg-canvas{
-  position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
-}
-.orb{
-  position:absolute;
-  border-radius:50%;
-  filter:blur(80px);
-  opacity:0.35;
-  animation:orbFloat 20s ease-in-out infinite;
-}
-.orb-1{
-  width:340px;height:340px;
-  background:var(--orb-1);
-  top:-10%;left:-5%;
-  animation-duration:22s;
-}
-.orb-2{
-  width:280px;height:280px;
-  background:var(--orb-2);
-  top:35%;right:-8%;
-  animation-duration:18s;animation-delay:-4s;
-}
-.orb-3{
-  width:250px;height:250px;
-  background:var(--orb-3);
-  bottom:-5%;left:15%;
-  animation-duration:25s;animation-delay:-9s;
-  opacity:0.25;
-}
-.orb-4{
-  width:200px;height:200px;
-  background:var(--orb-4);
-  top:60%;left:50%;
-  animation-duration:20s;animation-delay:-6s;
-  opacity:0.18;
-}
-.orb-5{
-  width:160px;height:160px;
-  background:var(--primary);
-  top:10%;right:25%;
-  animation-duration:28s;animation-delay:-12s;
-  opacity:0.2;
-}
-@keyframes orbFloat{
-  0%,100%{transform:translate(0,0) scale(1)}
-  25%{transform:translate(30px,-40px) scale(1.1)}
-  50%{transform:translate(-20px,30px) scale(0.9)}
-  75%{transform:translate(35px,20px) scale(1.05)}
-}
-
 
 /* ── Main Container ── */
 .app-container{
@@ -1089,7 +1038,10 @@ textarea.field-input{
     highlightActive(w);
 
     // Bind pointer events
-
+    wheelEl.addEventListener('pointerdown', function(e) { onPointerDown(e, w); });
+    wheelEl.addEventListener('pointermove', function(e) { onPointerMove(e, w); });
+    wheelEl.addEventListener('pointerup', function(e) { onPointerUp(e, w); });
+    wheelEl.addEventListener('pointercancel', function(e) { onPointerUp(e, w); });
     // Mouse wheel support
     wheelEl.addEventListener('wheel', function(e) {
       e.preventDefault();
@@ -1099,6 +1051,61 @@ textarea.field-input{
     }, { passive: false });
 
     wheels[stateKey] = w;
+  }
+  function onPointerDown(e, w) {
+    if (w.momentumRaf) cancelAnimationFrame(w.momentumRaf);
+    w.isDragging = true;
+    w.startY = e.clientY;
+    w.startOffset = w.offset;
+    w.lastY = e.clientY;
+    w.lastTime = Date.now();
+    w.velocity = 0;
+    w.track.classList.remove('snapping');
+    w.track.classList.add('dragging');
+    w.el.setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e, w) {
+    if (!w.isDragging) return;
+    var dy = e.clientY - w.startY;
+    w.offset = w.startOffset + dy;
+
+    // Clamp with rubber band
+    var minOffset = -(w.values.length - 1) * ITEM_HEIGHT;
+    var maxOffset = 0;
+    if (w.offset > maxOffset) {
+      w.offset = maxOffset + (w.offset - maxOffset) * 0.3;
+    } else if (w.offset < minOffset) {
+      w.offset = minOffset + (w.offset - minOffset) * 0.3;
+    }
+
+    w.track.style.transform = 'translateY(' + w.offset + 'px)';
+
+    // Track velocity
+    var now = Date.now();
+    var dt = now - w.lastTime;
+    if (dt > 0) {
+      w.velocity = (e.clientY - w.lastY) / dt;
+    }
+    w.lastY = e.clientY;
+    w.lastTime = now;
+
+    highlightNearest(w);
+  }
+
+  function onPointerUp(e, w) {
+    if (!w.isDragging) return;
+    w.isDragging = false;
+    w.track.classList.remove('dragging');
+
+    // Apply momentum
+    var momentum = w.velocity * 120;
+    var targetOffset = w.offset + momentum;
+
+    // Snap to nearest
+    var nearestIndex = Math.round(-targetOffset / ITEM_HEIGHT);
+    nearestIndex = clampIndex(nearestIndex, w.values.length);
+    snapTo(w, nearestIndex);
   }
 
 
