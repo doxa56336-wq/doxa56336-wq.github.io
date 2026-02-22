@@ -615,6 +615,49 @@ textarea.field-input{
 @supports(-webkit-touch-callout:none){
   body{min-height:-webkit-fill-available}
 }
+
+.loading{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  margin: 0;
+  padding: 0;
+}
+.loading svg polyline {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.loading svg polyline#back {
+  fill: none;
+  stroke: #ff4d5033;
+}
+
+.loading svg polyline#front {
+  fill: none;
+  stroke: var(--primary);
+  stroke-dasharray: 48, 144;
+  stroke-dashoffset: 192;
+  animation: dash_682 1.4s linear infinite;
+}
+
+@keyframes dash_682 {
+  72.5% {
+    opacity: 0;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
 </style>
 </head>
 <body>
@@ -831,7 +874,44 @@ textarea.field-input{
 </div>
 
 <script>
-  (function() {
+(async function initApp() {
+  // Показываем лоадер заранее
+  document.body.innerHTML = `<div class="loading">
+  <svg width="64px" height="48px">
+      <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="back"></polyline>
+    <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="front"></polyline>
+  </svg>
+</div>`;
+
+  // Ждём Telegram WebApp
+  let tg = null;
+  if (window.Telegram && window.Telegram.WebApp) {
+    tg = window.Telegram.WebApp;
+
+    // Ждём события ready
+    await new Promise(resolve => {
+      if (tg.isReady) {
+        resolve();
+      } else {
+        tg.onEvent('ready', resolve);
+        tg.ready();
+      }
+    });
+  }
+
+  // Telegram готов, теперь можно инициализировать приложение
+  document.getElementById('loading')?.remove();
+
+  // Сохраняем user в state
+  window.state = window.state || {};
+  window.state.telegramUser = tg?.initDataUnsafe?.user || null;
+  window.state.isTelegram = !!tg;
+
+  // Дальше вызываем остальной JS вашего приложения
+  initMainApp();
+})();
+
+  function initMainApp() {
     'use strict';
     /* === STATE === */
     var state = {
@@ -944,33 +1024,7 @@ textarea.field-input{
       dom.errorEls.time = document.getElementById('errorTime');
     }
   
-    /* === TELEGRAM === */
-    function initTelegram() {
-      try {
-        if (window.Telegram && window.Telegram.WebApp) {
-         tg = window.Telegram.WebApp;
-          
-          tg.ready();
-          tg.expand();
-          state.isTelegram = true;
-  
-          if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            state.telegramUser = tg.initDataUnsafe.user;
-          }
-  
-          if (tg.themeParams) {
-            var tp = tg.themeParams;
-            if (tp.bg_color) document.documentElement.style.setProperty('--bg', tp.bg_color);
-            if (tp.text_color) document.documentElement.style.setProperty('--text', tp.text_color);
-            if (tp.hint_color) document.documentElement.style.setProperty('--text-secondary', tp.hint_color);
-            if (tp.button_color) document.documentElement.style.setProperty('--primary', tp.button_color);
-          }
-        }
-      } catch (e) {
-        state.isTelegram = false;
-      }
-    }
-  
+ 
     /* ===================================================
        iOS DRUM SCROLL WHEEL PICKER
        =================================================== */
@@ -1435,7 +1489,6 @@ textarea.field-input{
   state.formData.endHour + ":" + 
   (state.formData.endMinute === 0 ? "00" : state.formData.endMinute);
       }
-      initTelegram();
       var payload = {
         title: state.formData.title || '',
         jobTitle: state.formData.jobTitle || '',
@@ -1603,7 +1656,7 @@ textarea.field-input{
       init();
     }
   
-  })();
+  };
   </script>
 </body>
 </html>
