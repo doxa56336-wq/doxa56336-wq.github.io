@@ -876,7 +876,7 @@ textarea.field-input{
 <script>
 (async function initApp() {
   // Показываем лоадер заранее
-  document.body.innerHTML = `<div class="loading">
+  document.body.innerHTML = `<div id="loading" class="loading">
   <svg width="64px" height="48px">
       <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="back"></polyline>
     <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="front"></polyline>
@@ -1474,85 +1474,95 @@ textarea.field-input{
   
     /* === ИСПРАВЛЕННАЯ ФУНКЦИЯ SENDDATA === */
     function sendData() {
-      // Показываем лоадер
-      if (dom.loaderOverlay) {
-        dom.loaderOverlay.classList.add('active');
-      }
-      
-      // Используем данные из state.formData
-      if(state.formData.schedule == "custom")
-      {
-        state.formData.schedule = "c " + 
-  state.formData.startHour + ":" + 
-  (state.formData.startMinute === 0 ? "00" : state.formData.startMinute) + 
-  " до " + 
-  state.formData.endHour + ":" + 
-  (state.formData.endMinute === 0 ? "00" : state.formData.endMinute);
-      }
-      var payload = {
-        title: state.formData.title || '',
-        jobTitle: state.formData.jobTitle || '',
-        salary: state.formData.salary || '',
-        city: state.formData.city || '',
-        address: state.formData.address || '',
-        description: state.formData.description || '',
-        schedule: state.formData.schedule || '',
-        scheduleLabel: state.formData.scheduleLabel || '',
-        companyId: state.telegramUser?.id || 0
-      };
-      
-      console.log('Отправка данных:', payload);
-      console.log('JSON:', JSON.stringify(payload));
-      
-      fetch(API_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      })
-      .then(async response => {
-        console.log('Статус ответа:', response.status);
-        console.log('Статус текстом:', response.statusText);
-        
-        // Пытаемся получить текст ответа
-        const text = await response.text();
-        console.log('Текст ответа:', text);
-        
-        if (!response.ok) {
-          throw new Error(`Сервер вернул ошибку ${response.status}: ${text}`);
-        }
-        
-        // Пытаемся распарсить JSON если это возможно
-        try {
-          return JSON.parse(text);
-        } catch {
-          return text;
-        }
-      })
-      .then(data => {
-        console.log('Успех:', data);
-        // Скрываем лоадер
-        if (dom.loaderOverlay) {
-          dom.loaderOverlay.classList.remove('active');
-        }
-        // Показываем экран успеха
-        showSuccess();
-      })
-      .catch(error => {
-        console.error('Полная ошибка:', error);
-        // Скрываем лоадер
-        if (dom.loaderOverlay) {
-          dom.loaderOverlay.classList.remove('active');
-        }
-        // Показываем ошибку
-        showErrorBanner('Ошибка при отправке: ' + error.message);
-      })
-      .finally(() => {
-        state.isSubmitting = false;
-      });
-    }
+  // Показываем лоадер
+  if (dom.loaderOverlay) {
+    dom.loaderOverlay.classList.add('active');
+  }
   
+  // Используем данные из state.formData
+  if(state.formData.schedule == "custom")
+  {
+    state.formData.schedule = "c " + 
+      state.formData.startHour + ":" + 
+      (state.formData.startMinute === 0 ? "00" : state.formData.startMinute) + 
+      " до " + 
+      state.formData.endHour + ":" + 
+      (state.formData.endMinute === 0 ? "00" : state.formData.endMinute);
+  }
+  
+  var payload = {
+    title: state.formData.title || '',
+    jobTitle: state.formData.jobTitle || '',
+    salary: state.formData.salary || '',
+    city: state.formData.city || '',
+    address: state.formData.address || '',
+    description: state.formData.description || '',
+    schedule: state.formData.schedule || '',
+    scheduleLabel: state.formData.scheduleLabel || '',
+    companyId: state.telegramUser?.id || 0
+  };
+  
+  console.log('Отправка данных:', payload);
+  console.log('JSON:', JSON.stringify(payload));
+  
+  fetch(API_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(async response => {
+    console.log('Статус ответа:', response.status);
+    console.log('Статус текстом:', response.statusText);
+    
+    // Пытаемся получить текст ответа
+    const text = await response.text();
+    console.log('Текст ответа:', text);
+    
+    if (!response.ok) {
+      // Здесь мы логируем ошибку, но НЕ показываем пользователю
+      console.error('Детали ошибки от сервера:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: text
+      });
+      
+      // Вместо показа технической информации выбрасываем общую ошибку
+      throw new Error('Произошла ошибка при отправке данных');
+    }
+    
+    // Пытаемся распарсить JSON если это возможно
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  })
+  .then(data => {
+    console.log('Успех:', data);
+    // Скрываем лоадер
+    if (dom.loaderOverlay) {
+      dom.loaderOverlay.classList.remove('active');
+    }
+    // Показываем экран успеха
+    showSuccess();
+  })
+  .catch(error => {
+    console.error('Полная ошибка:', error);
+    
+    // Скрываем лоадер
+    if (dom.loaderOverlay) {
+      dom.loaderOverlay.classList.remove('active');
+    }
+    
+    // Показываем общее сообщение пользователю
+    showErrorBanner('Что-то пошло не так. Пожалуйста, попробуйте позже.');
+  })
+  .finally(() => {
+    state.isSubmitting = false;
+  });
+}
     /* === ИСПРАВЛЕННАЯ ФУНКЦИЯ SHOWSUCCESS === */
     function showSuccess() {
       if (dom.successScreen) {
