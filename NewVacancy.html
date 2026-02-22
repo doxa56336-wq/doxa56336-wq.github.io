@@ -59,12 +59,12 @@ body{
 .app-container{
   position:relative;z-index:1;
   max-width:460px;margin:0 auto;
-  padding: 1px 16px 30px;
+  padding: 1px 16px 80px;
 }
 
 /* ── Header ── */
 .app-header{
-  text-align:center;padding:28px 0 24px;
+  text-align:center;padding:50px 0px 25px;
   animation:fadeUp 0.6s ease both;
 }
 .header-badge{
@@ -921,27 +921,25 @@ textarea.field-input{
   function initMainApp() {
     'use strict';
     /* === STATE === */
-    var state = {
-      formData: {
-        title: '',
-        jobTitle: '',
-        salary: '',
-        city: '',
-        address: '',
-        description: '',
-        schedule: '',
-        scheduleLabel: '',
-        companyId: 0,
-        startHour: 9,
-        startMinute: 0,
-        endHour: 18,
-        endMinute: 0
-      },
-      errors: {},
-      isSubmitting: false,
-      telegramUser: null,
-      isTelegram: false
-    };
+    var state = window.state || {};
+
+state.formData = {
+  title: '',
+  jobTitle: '',
+  salary: '',
+  city: '',
+  address: '',
+  description: '',
+  schedule: '',
+  scheduleLabel: '',
+  startHour: 9,
+  startMinute: 0,
+  endHour: 18,
+  endMinute: 0
+};
+
+state.errors = {};
+state.isSubmitting = false;
   
     var API_ENDPOINT = 'https://debug.john-mavlo.ru/api/TelegramBot/AddNewVacancy';
     var DEBOUNCE_DELAY = 300;
