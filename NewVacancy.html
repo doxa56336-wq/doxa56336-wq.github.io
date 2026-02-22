@@ -826,731 +826,784 @@ textarea.field-input{
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
   </div>
   <h2>Вакансия опубликована</h2>
-  <p>Ваша вакансия успешно отправлена и скоро появится в ленте</p>
+  <p>Ваша вакансия успешно отправлена и скоро появится на канале</p>
   <button type="button" class="btn btn-secondary" id="btnReset" style="margin-top:16px;width:auto;padding:12px 32px">Создать ещё</button>
 </div>
 
 <script>
-(function() {
-  'use strict';
-
-  /* === STATE === */
-  var state = {
-    formData: {
-      title: '',
-      jobTitle: '',
-      salary: '',
-      city: '',
-      address: '',
-      description: '',
-      schedule: '',
-      scheduleLabel: '',
-      startHour: 9,
-      startMinute: 0,
-      endHour: 18,
-      endMinute: 0
-    },
-    errors: {},
-    isSubmitting: false,
-    telegramUser: null,
-    isTelegram: false
-  };
-
-  var API_ENDPOINT = 'https://example.com/api';
-  var DEBOUNCE_DELAY = 300;
-  var debounceTimers = {};
-  var MINUTES = [0, 15, 30, 45];
-  var ITEM_HEIGHT = 30;
-
-  /* === DOM CACHE === */
-  var dom = {
-    form: null,
-    fields: {},
-    charCounts: {},
-    errorEls: {},
-    errorBanner: null,
-    errorBannerText: null,
-    scheduleSelect: null,
-    scheduleTrigger: null,
-    scheduleDropdown: null,
-    customTimeRow: null,
-    submitBtn: null,
-    previewModal: null,
-    previewBody: null,
-    btnEdit: null,
-    btnConfirm: null,
-    loaderOverlay: null,
-    successScreen: null,
-    btnReset: null
-  };
-
-  /* === DRUM WHEELS STATE === */
-  var wheels = {};
-
-  /* === SCHEDULE OPTIONS === */
-  var SCHEDULE_MAP = {
-    fulltime: 'Полный день',
-    shift: 'Сменный график',
-    remote: 'Удалённая работа',
-    flexible: 'Гибкий график',
-    custom: 'Свой график'
-  };
-
-  /* === VALIDATION RULES === */
-  var RULES = {
-    title:       { min: 3, max: 100, label: 'Название вакансии' },
-    jobTitle:    { min: 2, max: 80,  label: 'Должность' },
-    salary:      { min: 1, max: 30,  label: 'Зарплата', pattern: /^\d[\d\s]*(\s*[-\u2013\u2014]\s*\d[\d\s]*)?$/ },
-    city:        { min: 2, max: 60,  label: 'Город' },
-    address:     { min: 3, max: 150, label: 'Адрес' },
-    description: { min: 10, max: 2000, label: 'Описание' }
-  };
-
-  /* === INIT === */
-  function init() {
-    cacheDom();
-    initTelegram();
-    buildDrumWheels();
-    bindEvents();
-  }
-
-  function cacheDom() {
-    dom.form = document.getElementById('vacancyForm');
-    dom.errorBanner = document.getElementById('errorBanner');
-    dom.errorBannerText = document.getElementById('errorBannerText');
-    dom.scheduleSelect = document.getElementById('scheduleSelect');
-    dom.scheduleTrigger = document.getElementById('scheduleTrigger');
-    dom.scheduleDropdown = document.getElementById('scheduleDropdown');
-    dom.customTimeRow = document.getElementById('customTimeRow');
-    dom.submitBtn = document.getElementById('submitBtn');
-    dom.previewModal = document.getElementById('previewModal');
-    dom.previewBody = document.getElementById('previewBody');
-    dom.btnEdit = document.getElementById('btnEdit');
-    dom.btnConfirm = document.getElementById('btnConfirm');
-    dom.loaderOverlay = document.getElementById('loaderOverlay');
-    dom.successScreen = document.getElementById('successScreen');
-    dom.btnReset = document.getElementById('btnReset');
-
-    var fieldNames = ['title','jobTitle','salary','city','address','description'];
-    var fieldIds = ['fieldTitle','fieldJobTitle','fieldSalary','fieldCity','fieldAddress','fieldDescription'];
-    var countIds = ['countTitle',null,null,null,'countAddress','countDescription'];
-    var errorIds = ['errorTitle','errorJobTitle','errorSalary','errorCity','errorAddress','errorDescription'];
-
-    for (var i = 0; i < fieldNames.length; i++) {
-      dom.fields[fieldNames[i]] = document.getElementById(fieldIds[i]);
-      dom.errorEls[fieldNames[i]] = document.getElementById(errorIds[i]);
-      if (countIds[i]) dom.charCounts[fieldNames[i]] = document.getElementById(countIds[i]);
-    }
-    dom.errorEls.schedule = document.getElementById('errorSchedule');
-    dom.errorEls.time = document.getElementById('errorTime');
-  }
-
-  /* === TELEGRAM === */
-  function initTelegram() {
-    try {
-      if (window.Telegram && window.Telegram.WebApp) {
-        var tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-        state.isTelegram = true;
-
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-          state.telegramUser = tg.initDataUnsafe.user;
-        }
-
-        if (tg.themeParams) {
-          var tp = tg.themeParams;
-          if (tp.bg_color) document.documentElement.style.setProperty('--bg', tp.bg_color);
-          if (tp.text_color) document.documentElement.style.setProperty('--text', tp.text_color);
-          if (tp.hint_color) document.documentElement.style.setProperty('--text-secondary', tp.hint_color);
-          if (tp.button_color) document.documentElement.style.setProperty('--primary', tp.button_color);
-        }
-      }
-    } catch (e) {
-      state.isTelegram = false;
-    }
-  }
-
-  /* ===================================================
-     iOS DRUM SCROLL WHEEL PICKER
-     =================================================== */
-  function buildDrumWheels() {
-    // Hours 0-23
-    var hours = [];
-    for (var h = 0; h < 24; h++) hours.push(h);
-    // Minutes: 0,15,30,45
-    var mins = MINUTES;
-
-    initWheel('wheelStartH', 'trackStartH', hours, state.formData.startHour, 'startHour', true);
-    initWheel('wheelStartM', 'trackStartM', mins, state.formData.startMinute, 'startMinute', false);
-    initWheel('wheelEndH', 'trackEndH', hours, state.formData.endHour, 'endHour', true);
-    initWheel('wheelEndM', 'trackEndM', mins, state.formData.endMinute, 'endMinute', false);
-  }
-
-  function initWheel(wheelId, trackId, values, initialValue, stateKey, isHour) {
-    var wheelEl = document.getElementById(wheelId);
-    var trackEl = document.getElementById(trackId);
-    if (!wheelEl || !trackEl) return;
-
-    // Populate items
-    // Add padding items top and bottom (1 blank slot each side so selected is centered)
-    var padCount = 1;
-    var html = '';
-    for (var p = 0; p < padCount; p++) {
-      html += '<div class="drum-item drum-pad" aria-hidden="true"></div>';
-    }
-    for (var i = 0; i < values.length; i++) {
-      var display = isHour ? padZero(values[i]) : padZero(values[i]);
-      html += '<div class="drum-item" data-value="' + values[i] + '">' + display + '</div>';
-    }
-    for (var p2 = 0; p2 < padCount; p2++) {
-      html += '<div class="drum-item drum-pad" aria-hidden="true"></div>';
-    }
-    trackEl.innerHTML = html;
-
-    // Find initial index
-    var selectedIndex = 0;
-    for (var si = 0; si < values.length; si++) {
-      if (values[si] === initialValue) { selectedIndex = si; break; }
-    }
-
-    var w = {
-      el: wheelEl,
-      track: trackEl,
-      values: values,
-      padCount: padCount,
-      stateKey: stateKey,
-      currentIndex: selectedIndex,
-      offset: 0,
-      startY: 0,
-      startOffset: 0,
-      isDragging: false,
-      velocity: 0,
-      lastY: 0,
-      lastTime: 0,
-      momentumRaf: null
+  (function() {
+    'use strict';
+    /* === STATE === */
+    var state = {
+      formData: {
+        title: '',
+        jobTitle: '',
+        salary: '',
+        city: '',
+        address: '',
+        description: '',
+        schedule: '',
+        scheduleLabel: '',
+        companyId: 0,
+        startHour: 9,
+        startMinute: 0,
+        endHour: 18,
+        endMinute: 0
+      },
+      errors: {},
+      isSubmitting: false,
+      telegramUser: null,
+      isTelegram: false
     };
-
-    // Position to initial
-    w.offset = -selectedIndex * ITEM_HEIGHT;
-    trackEl.style.transform = 'translateY(' + w.offset + 'px)';
-    trackEl.classList.add('snapping');
-    highlightActive(w);
-
-    // Bind pointer events
-    wheelEl.addEventListener('pointerdown', function(e) { onPointerDown(e, w); });
-    wheelEl.addEventListener('pointermove', function(e) { onPointerMove(e, w); });
-    wheelEl.addEventListener('pointerup', function(e) { onPointerUp(e, w); });
-    wheelEl.addEventListener('pointercancel', function(e) { onPointerUp(e, w); });
-    // Mouse wheel support
-    wheelEl.addEventListener('wheel', function(e) {
-      e.preventDefault();
-      var dir = e.deltaY > 0 ? 1 : -1;
-      var newIndex = clampIndex(w.currentIndex + dir, w.values.length);
-      snapTo(w, newIndex);
-    }, { passive: false });
-
-    wheels[stateKey] = w;
-  }
-  function onPointerDown(e, w) {
-    if (w.momentumRaf) cancelAnimationFrame(w.momentumRaf);
-    w.isDragging = true;
-    w.startY = e.clientY;
-    w.startOffset = w.offset;
-    w.lastY = e.clientY;
-    w.lastTime = Date.now();
-    w.velocity = 0;
-    w.track.classList.remove('snapping');
-    w.track.classList.add('dragging');
-    w.el.setPointerCapture(e.pointerId);
-  }
-
-  function onPointerMove(e, w) {
-    if (!w.isDragging) return;
-    var dy = e.clientY - w.startY;
-    w.offset = w.startOffset + dy;
-
-    // Clamp with rubber band
-    var minOffset = -(w.values.length - 1) * ITEM_HEIGHT;
-    var maxOffset = 0;
-    if (w.offset > maxOffset) {
-      w.offset = maxOffset + (w.offset - maxOffset) * 0.3;
-    } else if (w.offset < minOffset) {
-      w.offset = minOffset + (w.offset - minOffset) * 0.3;
+  
+    var API_ENDPOINT = 'http://localhost:5041/api/TelegramBot/AddNewVacancy';
+    var DEBOUNCE_DELAY = 300;
+    var debounceTimers = {};
+    var MINUTES = [0, 15, 30, 45];
+    var ITEM_HEIGHT = 30;
+  
+    /* === DOM CACHE === */
+    var dom = {
+      form: null,
+      fields: {},
+      charCounts: {},
+      errorEls: {},
+      errorBanner: null,
+      errorBannerText: null,
+      scheduleSelect: null,
+      scheduleTrigger: null,
+      scheduleDropdown: null,
+      customTimeRow: null,
+      submitBtn: null,
+      previewModal: null,
+      previewBody: null,
+      btnEdit: null,
+      btnConfirm: null,
+      loaderOverlay: null,
+      successScreen: null,
+      btnReset: null
+    };
+  
+    /* === DRUM WHEELS STATE === */
+    var wheels = {};
+  
+    /* === SCHEDULE OPTIONS === */
+    var SCHEDULE_MAP = {
+      fulltime: 'Полный день',
+      shift: 'Сменный график',
+      remote: 'Удалённая работа',
+      flexible: 'Гибкий график',
+      custom: 'Свой график'
+    };
+  
+    /* === VALIDATION RULES === */
+    var RULES = {
+      title:       { min: 3, max: 100, label: 'Название вакансии' },
+      jobTitle:    { min: 2, max: 50,  label: 'Должность' },
+      salary:      { min: 1, max: 30,  label: 'Зарплата', pattern: /^\d[\d\s]*(\s*[-\u2013\u2014]\s*\d[\d\s]*)?$/ },
+      city:        { min: 2, max: 60,  label: 'Город' },
+      address:     { min: 3, max: 150, label: 'Адрес' },
+      description: { min: 10, max: 2000, label: 'Описание' }
+    };
+  
+    /* === INIT === */
+    function init() {
+      cacheDom();
+      initTelegram();
+      buildDrumWheels();
+      bindEvents();
     }
-
-    w.track.style.transform = 'translateY(' + w.offset + 'px)';
-
-    // Track velocity
-    var now = Date.now();
-    var dt = now - w.lastTime;
-    if (dt > 0) {
-      w.velocity = (e.clientY - w.lastY) / dt;
-    }
-    w.lastY = e.clientY;
-    w.lastTime = now;
-
-    highlightNearest(w);
-  }
-
-  function onPointerUp(e, w) {
-    if (!w.isDragging) return;
-    w.isDragging = false;
-    w.track.classList.remove('dragging');
-
-    // Apply momentum
-    var momentum = w.velocity * 120;
-    var targetOffset = w.offset + momentum;
-
-    // Snap to nearest
-    var nearestIndex = Math.round(-targetOffset / ITEM_HEIGHT);
-    nearestIndex = clampIndex(nearestIndex, w.values.length);
-    snapTo(w, nearestIndex);
-  }
-
-
-
-
-
-  function snapTo(w, index) {
-    w.currentIndex = index;
-    w.offset = -index * ITEM_HEIGHT;
-    w.track.classList.add('snapping');
-    w.track.style.transform = 'translateY(' + w.offset + 'px)';
-    highlightActive(w);
-
-    // Update state
-    state.formData[w.stateKey] = w.values[index];
-    if (state.errors.time) clearFieldError('time');
-  }
-
-  function highlightActive(w) {
-    var items = w.track.querySelectorAll('.drum-item:not(.drum-pad)');
-    items.forEach(function(item, i) {
-      item.classList.toggle('active', i === w.currentIndex);
-    });
-  }
-
-  function highlightNearest(w) {
-    var nearestIndex = Math.round(-w.offset / ITEM_HEIGHT);
-    nearestIndex = clampIndex(nearestIndex, w.values.length);
-    var items = w.track.querySelectorAll('.drum-item:not(.drum-pad)');
-    items.forEach(function(item, i) {
-      item.classList.toggle('active', i === nearestIndex);
-    });
-  }
-
-  function clampIndex(idx, len) {
-    return Math.max(0, Math.min(idx, len - 1));
-  }
-
-  function resetWheels() {
-    var defaults = { startHour: 9, startMinute: 0, endHour: 18, endMinute: 0 };
-    Object.keys(defaults).forEach(function(key) {
-      var w = wheels[key];
-      if (!w) return;
-      var val = defaults[key];
-      var idx = 0;
-      for (var i = 0; i < w.values.length; i++) {
-        if (w.values[i] === val) { idx = i; break; }
+  
+    function cacheDom() {
+      dom.form = document.getElementById('vacancyForm');
+      dom.errorBanner = document.getElementById('errorBanner');
+      dom.errorBannerText = document.getElementById('errorBannerText');
+      dom.scheduleSelect = document.getElementById('scheduleSelect');
+      dom.scheduleTrigger = document.getElementById('scheduleTrigger');
+      dom.scheduleDropdown = document.getElementById('scheduleDropdown');
+      dom.customTimeRow = document.getElementById('customTimeRow');
+      dom.submitBtn = document.getElementById('submitBtn');
+      dom.previewModal = document.getElementById('previewModal');
+      dom.previewBody = document.getElementById('previewBody');
+      dom.btnEdit = document.getElementById('btnEdit');
+      dom.btnConfirm = document.getElementById('btnConfirm');
+      dom.loaderOverlay = document.getElementById('loaderOverlay');
+      dom.successScreen = document.getElementById('successScreen');
+      dom.btnReset = document.getElementById('btnReset');
+  
+      var fieldNames = ['title','jobTitle','salary','city','address','description'];
+      var fieldIds = ['fieldTitle','fieldJobTitle','fieldSalary','fieldCity','fieldAddress','fieldDescription'];
+      var countIds = ['countTitle',null,null,null,'countAddress','countDescription'];
+      var errorIds = ['errorTitle','errorJobTitle','errorSalary','errorCity','errorAddress','errorDescription'];
+  
+      for (var i = 0; i < fieldNames.length; i++) {
+        dom.fields[fieldNames[i]] = document.getElementById(fieldIds[i]);
+        dom.errorEls[fieldNames[i]] = document.getElementById(errorIds[i]);
+        if (countIds[i]) dom.charCounts[fieldNames[i]] = document.getElementById(countIds[i]);
       }
-      snapTo(w, idx);
-    });
-  }
-
-  /* === EVENTS === */
-  function bindEvents() {
-    Object.keys(dom.fields).forEach(function(name) {
-      var el = dom.fields[name];
-      el.addEventListener('input', function() {
-        debounce(name, function() {
-          state.formData[name] = el.value.trim();
-          updateCharCount(name);
-          if (state.errors[name]) validateField(name);
-        });
-      }, { passive: true });
-
-      el.addEventListener('focus', function() {
-        clearFieldError(name);
-      }, { passive: true });
-    });
-
-    dom.scheduleTrigger.addEventListener('click', toggleSelect);
-    dom.scheduleTrigger.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSelect(); }
-      if (e.key === 'Escape') closeSelect();
-    });
-
-    var options = dom.scheduleDropdown.querySelectorAll('.select-option');
-    options.forEach(function(opt) {
-      opt.addEventListener('click', function() { selectSchedule(opt.dataset.value); });
-      opt.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSchedule(opt.dataset.value); }
+      dom.errorEls.schedule = document.getElementById('errorSchedule');
+      dom.errorEls.time = document.getElementById('errorTime');
+    }
+  
+    /* === TELEGRAM === */
+    function initTelegram() {
+      try {
+        if (window.Telegram && window.Telegram.WebApp) {
+         tg = window.Telegram.WebApp;
+          
+          tg.ready();
+          tg.expand();
+          state.isTelegram = true;
+  
+          if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            state.telegramUser = tg.initDataUnsafe.user;
+          }
+  
+          if (tg.themeParams) {
+            var tp = tg.themeParams;
+            if (tp.bg_color) document.documentElement.style.setProperty('--bg', tp.bg_color);
+            if (tp.text_color) document.documentElement.style.setProperty('--text', tp.text_color);
+            if (tp.hint_color) document.documentElement.style.setProperty('--text-secondary', tp.hint_color);
+            if (tp.button_color) document.documentElement.style.setProperty('--primary', tp.button_color);
+          }
+        }
+      } catch (e) {
+        state.isTelegram = false;
+      }
+    }
+  
+    /* ===================================================
+       iOS DRUM SCROLL WHEEL PICKER
+       =================================================== */
+    function buildDrumWheels() {
+      // Hours 0-23
+      var hours = [];
+      for (var h = 0; h < 24; h++) hours.push(h);
+      // Minutes: 0,15,30,45
+      var mins = MINUTES;
+  
+      initWheel('wheelStartH', 'trackStartH', hours, state.formData.startHour, 'startHour', true);
+      initWheel('wheelStartM', 'trackStartM', mins, state.formData.startMinute, 'startMinute', false);
+      initWheel('wheelEndH', 'trackEndH', hours, state.formData.endHour, 'endHour', true);
+      initWheel('wheelEndM', 'trackEndM', mins, state.formData.endMinute, 'endMinute', false);
+    }
+  
+    function initWheel(wheelId, trackId, values, initialValue, stateKey, isHour) {
+      var wheelEl = document.getElementById(wheelId);
+      var trackEl = document.getElementById(trackId);
+      if (!wheelEl || !trackEl) return;
+  
+      // Populate items
+      // Add padding items top and bottom (1 blank slot each side so selected is centered)
+      var padCount = 1;
+      var html = '';
+      for (var p = 0; p < padCount; p++) {
+        html += '<div class="drum-item drum-pad" aria-hidden="true"></div>';
+      }
+      for (var i = 0; i < values.length; i++) {
+        var display = isHour ? padZero(values[i]) : padZero(values[i]);
+        html += '<div class="drum-item" data-value="' + values[i] + '">' + display + '</div>';
+      }
+      for (var p2 = 0; p2 < padCount; p2++) {
+        html += '<div class="drum-item drum-pad" aria-hidden="true"></div>';
+      }
+      trackEl.innerHTML = html;
+  
+      // Find initial index
+      var selectedIndex = 0;
+      for (var si = 0; si < values.length; si++) {
+        if (values[si] === initialValue) { selectedIndex = si; break; }
+      }
+  
+      var w = {
+        el: wheelEl,
+        track: trackEl,
+        values: values,
+        padCount: padCount,
+        stateKey: stateKey,
+        currentIndex: selectedIndex,
+        offset: 0,
+        startY: 0,
+        startOffset: 0,
+        isDragging: false,
+        velocity: 0,
+        lastY: 0,
+        lastTime: 0,
+        momentumRaf: null
+      };
+  
+      // Position to initial
+      w.offset = -selectedIndex * ITEM_HEIGHT;
+      trackEl.style.transform = 'translateY(' + w.offset + 'px)';
+      trackEl.classList.add('snapping');
+      highlightActive(w);
+  
+      // Bind pointer events
+      wheelEl.addEventListener('pointerdown', function(e) { onPointerDown(e, w); });
+      wheelEl.addEventListener('pointermove', function(e) { onPointerMove(e, w); });
+      wheelEl.addEventListener('pointerup', function(e) { onPointerUp(e, w); });
+      wheelEl.addEventListener('pointercancel', function(e) { onPointerUp(e, w); });
+      // Mouse wheel support
+      wheelEl.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        var dir = e.deltaY > 0 ? 1 : -1;
+        var newIndex = clampIndex(w.currentIndex + dir, w.values.length);
+        snapTo(w, newIndex);
+      }, { passive: false });
+  
+      wheels[stateKey] = w;
+    }
+    function onPointerDown(e, w) {
+      if (w.momentumRaf) cancelAnimationFrame(w.momentumRaf);
+      w.isDragging = true;
+      w.startY = e.clientY;
+      w.startOffset = w.offset;
+      w.lastY = e.clientY;
+      w.lastTime = Date.now();
+      w.velocity = 0;
+      w.track.classList.remove('snapping');
+      w.track.classList.add('dragging');
+      w.el.setPointerCapture(e.pointerId);
+    }
+  
+    function onPointerMove(e, w) {
+      if (!w.isDragging) return;
+      var dy = e.clientY - w.startY;
+      w.offset = w.startOffset + dy;
+  
+      // Clamp with rubber band
+      var minOffset = -(w.values.length - 1) * ITEM_HEIGHT;
+      var maxOffset = 0;
+      if (w.offset > maxOffset) {
+        w.offset = maxOffset + (w.offset - maxOffset) * 0.3;
+      } else if (w.offset < minOffset) {
+        w.offset = minOffset + (w.offset - minOffset) * 0.3;
+      }
+  
+      w.track.style.transform = 'translateY(' + w.offset + 'px)';
+  
+      // Track velocity
+      var now = Date.now();
+      var dt = now - w.lastTime;
+      if (dt > 0) {
+        w.velocity = (e.clientY - w.lastY) / dt;
+      }
+      w.lastY = e.clientY;
+      w.lastTime = now;
+  
+      highlightNearest(w);
+    }
+  
+    function onPointerUp(e, w) {
+      if (!w.isDragging) return;
+      w.isDragging = false;
+      w.track.classList.remove('dragging');
+  
+      // Apply momentum
+      var momentum = w.velocity * 120;
+      var targetOffset = w.offset + momentum;
+  
+      // Snap to nearest
+      var nearestIndex = Math.round(-targetOffset / ITEM_HEIGHT);
+      nearestIndex = clampIndex(nearestIndex, w.values.length);
+      snapTo(w, nearestIndex);
+    }
+  
+    function snapTo(w, index) {
+      w.currentIndex = index;
+      w.offset = -index * ITEM_HEIGHT;
+      w.track.classList.add('snapping');
+      w.track.style.transform = 'translateY(' + w.offset + 'px)';
+      highlightActive(w);
+  
+      // Update state
+      state.formData[w.stateKey] = w.values[index];
+      if (state.errors.time) clearFieldError('time');
+    }
+  
+    function highlightActive(w) {
+      var items = w.track.querySelectorAll('.drum-item:not(.drum-pad)');
+      items.forEach(function(item, i) {
+        item.classList.toggle('active', i === w.currentIndex);
       });
-    });
-
-    document.addEventListener('click', function(e) {
-      if (!dom.scheduleSelect.contains(e.target)) closeSelect();
-    }, { passive: true });
-
-    dom.form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      handleSubmit();
-    });
-
-    dom.btnEdit.addEventListener('click', closePreview);
-    dom.btnConfirm.addEventListener('click', confirmSubmit);
-    dom.btnReset.addEventListener('click', resetForm);
-
-    dom.previewModal.addEventListener('click', function(e) {
-      if (e.target === dom.previewModal) closePreview();
-    });
-
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        if (dom.previewModal.classList.contains('active')) closePreview();
-        if (dom.scheduleSelect.classList.contains('open')) closeSelect();
+    }
+  
+    function highlightNearest(w) {
+      var nearestIndex = Math.round(-w.offset / ITEM_HEIGHT);
+      nearestIndex = clampIndex(nearestIndex, w.values.length);
+      var items = w.track.querySelectorAll('.drum-item:not(.drum-pad)');
+      items.forEach(function(item, i) {
+        item.classList.toggle('active', i === nearestIndex);
+      });
+    }
+  
+    function clampIndex(idx, len) {
+      return Math.max(0, Math.min(idx, len - 1));
+    }
+  
+    function resetWheels() {
+      var defaults = { startHour: 9, startMinute: 0, endHour: 18, endMinute: 0 };
+      Object.keys(defaults).forEach(function(key) {
+        var w = wheels[key];
+        if (!w) return;
+        var val = defaults[key];
+        var idx = 0;
+        for (var i = 0; i < w.values.length; i++) {
+          if (w.values[i] === val) { idx = i; break; }
+        }
+        snapTo(w, idx);
+      });
+    }
+  
+    /* === EVENTS === */
+    function bindEvents() {
+      Object.keys(dom.fields).forEach(function(name) {
+        var el = dom.fields[name];
+        el.addEventListener('input', function() {
+          debounce(name, function() {
+            state.formData[name] = el.value.trim();
+            updateCharCount(name);
+            if (state.errors[name]) validateField(name);
+          });
+        }, { passive: true });
+  
+        el.addEventListener('focus', function() {
+          clearFieldError(name);
+        }, { passive: true });
+      });
+  
+      dom.scheduleTrigger.addEventListener('click', toggleSelect);
+      dom.scheduleTrigger.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSelect(); }
+        if (e.key === 'Escape') closeSelect();
+      });
+  
+      var options = dom.scheduleDropdown.querySelectorAll('.select-option');
+      options.forEach(function(opt) {
+        opt.addEventListener('click', function() { selectSchedule(opt.dataset.value); });
+        opt.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSchedule(opt.dataset.value); }
+        });
+      });
+  
+      document.addEventListener('click', function(e) {
+        if (!dom.scheduleSelect.contains(e.target)) closeSelect();
+      }, { passive: true });
+  
+      dom.form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        handleSubmit();
+      });
+  
+      dom.btnEdit.addEventListener('click', closePreview);
+      dom.btnConfirm.addEventListener('click', confirmSubmit);
+      dom.btnReset.addEventListener('click', resetForm);
+  
+      dom.previewModal.addEventListener('click', function(e) {
+        if (e.target === dom.previewModal) closePreview();
+      });
+  
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          if (dom.previewModal.classList.contains('active')) closePreview();
+          if (dom.scheduleSelect.classList.contains('open')) closeSelect();
+        }
+      });
+    }
+  
+    /* === DEBOUNCE === */
+    function debounce(key, fn) {
+      if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
+      debounceTimers[key] = setTimeout(fn, DEBOUNCE_DELAY);
+    }
+  
+    /* === CHAR COUNT === */
+    function updateCharCount(name) {
+      var countEl = dom.charCounts[name];
+      if (!countEl) return;
+      var rule = RULES[name];
+      var len = dom.fields[name].value.length;
+      countEl.textContent = len + ' / ' + rule.max;
+      countEl.className = 'char-count';
+      if (len > rule.max * 0.9) countEl.classList.add('warn');
+      if (len > rule.max) countEl.classList.add('over');
+    }
+  
+    /* === CUSTOM SELECT === */
+    function toggleSelect() {
+      var isOpen = dom.scheduleSelect.classList.toggle('open');
+      dom.scheduleTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (isOpen) {
+        var active = dom.scheduleDropdown.querySelector('.select-option.active');
+        if (active) active.focus();
+        else dom.scheduleDropdown.querySelector('.select-option').focus();
       }
-    });
-  }
-
-  /* === DEBOUNCE === */
-  function debounce(key, fn) {
-    if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
-    debounceTimers[key] = setTimeout(fn, DEBOUNCE_DELAY);
-  }
-
-  /* === CHAR COUNT === */
-  function updateCharCount(name) {
-    var countEl = dom.charCounts[name];
-    if (!countEl) return;
-    var rule = RULES[name];
-    var len = dom.fields[name].value.length;
-    countEl.textContent = len + ' / ' + rule.max;
-    countEl.className = 'char-count';
-    if (len > rule.max * 0.9) countEl.classList.add('warn');
-    if (len > rule.max) countEl.classList.add('over');
-  }
-
-  /* === CUSTOM SELECT === */
-  function toggleSelect() {
-    var isOpen = dom.scheduleSelect.classList.toggle('open');
-    dom.scheduleTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    if (isOpen) {
-      var active = dom.scheduleDropdown.querySelector('.select-option.active');
-      if (active) active.focus();
-      else dom.scheduleDropdown.querySelector('.select-option').focus();
     }
-  }
-
-  function closeSelect() {
-    dom.scheduleSelect.classList.remove('open');
-    dom.scheduleTrigger.setAttribute('aria-expanded', 'false');
-  }
-
-  function selectSchedule(value) {
-    state.formData.schedule = value;
-    state.formData.scheduleLabel = SCHEDULE_MAP[value];
-
-    dom.scheduleTrigger.innerHTML =
-      '<span>' + escapeHtml(SCHEDULE_MAP[value]) + '</span>' +
-      '<span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>';
-
-    dom.scheduleDropdown.querySelectorAll('.select-option').forEach(function(o) {
-      o.classList.toggle('active', o.dataset.value === value);
-      o.setAttribute('aria-selected', o.dataset.value === value ? 'true' : 'false');
-    });
-
-    toggleCustomSchedule(value === 'custom');
-    closeSelect();
-    clearFieldError('schedule');
-  }
-
-  function toggleCustomSchedule(show) {
-    dom.customTimeRow.classList.toggle('hidden', !show);
-  }
-
-  /* === VALIDATION === */
-  function validateForm() {
-    state.errors = {};
-    Object.keys(RULES).forEach(function(name) {
-      validateField(name);
-    });
-
-    if (!state.formData.schedule) {
-      state.errors.schedule = 'Выберите график работы';
+  
+    function closeSelect() {
+      dom.scheduleSelect.classList.remove('open');
+      dom.scheduleTrigger.setAttribute('aria-expanded', 'false');
     }
-
-    if (state.formData.schedule === 'custom') {
-      var startTotal = state.formData.startHour * 60 + state.formData.startMinute;
-      var endTotal = state.formData.endHour * 60 + state.formData.endMinute;
-      if (endTotal <= startTotal) {
-        state.errors.time = 'Время окончания должно быть позже начала';
+  
+    function selectSchedule(value) {
+      state.formData.schedule = value;
+      state.formData.scheduleLabel = SCHEDULE_MAP[value];
+  
+      dom.scheduleTrigger.innerHTML =
+        '<span>' + escapeHtml(SCHEDULE_MAP[value]) + '</span>' +
+        '<span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>';
+  
+      dom.scheduleDropdown.querySelectorAll('.select-option').forEach(function(o) {
+        o.classList.toggle('active', o.dataset.value === value);
+        o.setAttribute('aria-selected', o.dataset.value === value ? 'true' : 'false');
+      });
+  
+      toggleCustomSchedule(value === 'custom');
+      closeSelect();
+      clearFieldError('schedule');
+    }
+  
+    function toggleCustomSchedule(show) {
+      dom.customTimeRow.classList.toggle('hidden', !show);
+    }
+  
+    /* === VALIDATION === */
+    function validateForm() {
+      state.errors = {};
+      Object.keys(RULES).forEach(function(name) {
+        validateField(name);
+      });
+  
+      if (!state.formData.schedule) {
+        state.errors.schedule = 'Выберите график работы';
       }
+  
+      if (state.formData.schedule === 'custom') {
+        var startTotal = state.formData.startHour * 60 + state.formData.startMinute;
+        var endTotal = state.formData.endHour * 60 + state.formData.endMinute;
+        if (endTotal <= startTotal) {
+          state.errors.time = 'Время окончания должно быть позже начала';
+        }
+      }
+  
+      renderErrors();
+      return Object.keys(state.errors).length === 0;
     }
-
-    renderErrors();
-    return Object.keys(state.errors).length === 0;
-  }
-
-  function validateField(name) {
-    var rule = RULES[name];
-    if (!rule) return;
-    var val = dom.fields[name].value.trim();
-
-    if (!val) {
-      state.errors[name] = 'Поле "' + rule.label + '" обязательно';
-      showFieldError(name, state.errors[name]);
-      return;
-    }
-    if (val.length < rule.min) {
-      state.errors[name] = 'Минимум ' + rule.min + ' символов';
-      showFieldError(name, state.errors[name]);
-      return;
-    }
-    if (val.length > rule.max) {
-      state.errors[name] = 'Максимум ' + rule.max + ' символов';
-      showFieldError(name, state.errors[name]);
-      return;
-    }
-    if (rule.pattern && !rule.pattern.test(val)) {
-      state.errors[name] = 'Введите число или диапазон (например 40000-60000)';
-      showFieldError(name, state.errors[name]);
-      return;
-    }
-
-    delete state.errors[name];
-    clearFieldError(name);
-  }
-
-  function showFieldError(name, msg) {
-    var el = dom.errorEls[name];
-    if (el) { el.textContent = msg; el.classList.add('visible'); }
-    var input = dom.fields[name] || (name === 'schedule' ? dom.scheduleTrigger : null);
-    if (input) input.classList.add('has-error');
-  }
-
-  function clearFieldError(name) {
-    var el = dom.errorEls[name];
-    if (el) { el.textContent = ''; el.classList.remove('visible'); }
-    var input = dom.fields[name] || (name === 'schedule' ? dom.scheduleTrigger : null);
-    if (input) input.classList.remove('has-error');
-  }
-
-  function clearErrors() {
-    Object.keys(dom.errorEls).forEach(function(name) {
+  
+    function validateField(name) {
+      var rule = RULES[name];
+      if (!rule) return;
+      var val = dom.fields[name].value.trim();
+  
+      if (!val) {
+        state.errors[name] = 'Поле "' + rule.label + '" обязательно';
+        showFieldError(name, state.errors[name]);
+        return;
+      }
+      if (val.length < rule.min) {
+        state.errors[name] = 'Минимум ' + rule.min + ' символов';
+        showFieldError(name, state.errors[name]);
+        return;
+      }
+      if (val.length > rule.max) {
+        state.errors[name] = 'Максимум ' + rule.max + ' символов';
+        showFieldError(name, state.errors[name]);
+        return;
+      }
+      if (rule.pattern && !rule.pattern.test(val)) {
+        state.errors[name] = 'Введите число или диапазон (например 40000-60000)';
+        showFieldError(name, state.errors[name]);
+        return;
+      }
+  
+      delete state.errors[name];
       clearFieldError(name);
-    });
-    dom.errorBanner.classList.remove('visible');
-  }
-
-  function renderErrors() {
-    var keys = Object.keys(state.errors);
-    if (keys.length > 0) {
-      dom.errorBanner.classList.add('visible');
-      dom.errorBannerText.textContent = 'Исправьте ошибки в ' + keys.length + ' полях';
-      scrollToFirstError(keys[0]);
-    } else {
+    }
+  
+    function showFieldError(name, msg) {
+      var el = dom.errorEls[name];
+      if (el) { el.textContent = msg; el.classList.add('visible'); }
+      var input = dom.fields[name] || (name === 'schedule' ? dom.scheduleTrigger : null);
+      if (input) input.classList.add('has-error');
+    }
+  
+    function clearFieldError(name) {
+      var el = dom.errorEls[name];
+      if (el) { el.textContent = ''; el.classList.remove('visible'); }
+      var input = dom.fields[name] || (name === 'schedule' ? dom.scheduleTrigger : null);
+      if (input) input.classList.remove('has-error');
+    }
+  
+    function clearErrors() {
+      Object.keys(dom.errorEls).forEach(function(name) {
+        clearFieldError(name);
+      });
       dom.errorBanner.classList.remove('visible');
     }
-  }
-
-  function scrollToFirstError(name) {
-    var el = dom.fields[name] || dom.scheduleTrigger;
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      requestAnimationFrame(function() { el.focus(); });
+  
+    function renderErrors() {
+      var keys = Object.keys(state.errors);
+      if (keys.length > 0) {
+        dom.errorBanner.classList.add('visible');
+        dom.errorBannerText.textContent = 'Исправьте ошибки в ' + keys.length + ' полях';
+        scrollToFirstError(keys[0]);
+      } else {
+        dom.errorBanner.classList.remove('visible');
+      }
     }
-  }
-
-  /* === SUBMIT FLOW === */
-  function handleSubmit() {
-    Object.keys(dom.fields).forEach(function(name) {
-      state.formData[name] = dom.fields[name].value.trim();
-    });
-    if (!validateForm()) return;
-    renderPreview();
-    openPreview();
-  }
-
-  /* === PREVIEW === */
-  function renderPreview() {
-    var d = state.formData;
-    var scheduleText = d.scheduleLabel || '';
-    if (d.schedule === 'custom') {
-      scheduleText += ': ' + formatTime(d.startHour, d.startMinute) + ' \u2014 ' + formatTime(d.endHour, d.endMinute);
+  
+    function scrollToFirstError(name) {
+      var el = dom.fields[name] || dom.scheduleTrigger;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        requestAnimationFrame(function() { el.focus(); });
+      }
     }
-
-    var rows = [
-      { label: 'Название', value: d.title },
-      { label: 'Должность', value: d.jobTitle },
-      { label: 'Зарплата', value: d.salary + ' \u20BD' },
-      { label: 'Город', value: d.city },
-      { label: 'Адрес', value: d.address },
-      { label: 'График', value: scheduleText },
-      { label: 'Описание', value: d.description }
-    ];
-
-    var html = '<div class="preview-card">';
-    rows.forEach(function(r) {
-      html += '<div class="preview-row">' +
-        '<span class="preview-label">' + escapeHtml(r.label) + '</span>' +
-        '<span class="preview-value">' + escapeHtml(r.value) + '</span>' +
-        '</div>';
-    });
-    html += '</div>';
-    dom.previewBody.innerHTML = html;
-  }
-
-  function openPreview() {
-    dom.previewModal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-    dom.btnEdit.focus();
-  }
-
-  function closePreview() {
-    dom.previewModal.classList.remove('active');
-    document.body.style.overflow = '';
-    dom.submitBtn.focus();
-  }
-
-  /* === CONFIRM & SEND === */
-  function confirmSubmit() {
-    if (state.isSubmitting) return;
-    closePreview();
-    sendData();
-  }
-
-  function sendData() {
-    state.isSubmitting = true;
-    dom.submitBtn.disabled = true;
-    dom.loaderOverlay.classList.add('active');
-
-    var d = state.formData;
-    var payload = {
-      title: d.title,
-      jobTitle: d.jobTitle,
-      salary: d.salary,
-      city: d.city,
-      address: d.address,
-      description: d.description,
-      schedule: d.schedule,
-      scheduleLabel: d.scheduleLabel
-    };
-
-    if (d.schedule === 'custom') {
-      payload.startTime = formatTime(d.startHour, d.startMinute);
-      payload.endTime = formatTime(d.endHour, d.endMinute);
+  
+    /* === SUBMIT FLOW === */
+    function handleSubmit() {
+      Object.keys(dom.fields).forEach(function(name) {
+        state.formData[name] = dom.fields[name].value.trim();
+      });
+      if (!validateForm()) return;
+      renderPreview();
+      openPreview();
     }
-
-    if (state.telegramUser) {
-      payload.telegramUser = state.telegramUser;
+  
+    /* === PREVIEW === */
+    function renderPreview() {
+      var d = state.formData;
+      var scheduleText = d.scheduleLabel || '';
+      if (d.schedule === 'custom') {
+        scheduleText += ': ' + formatTime(d.startHour, d.startMinute) + ' \u2014 ' + formatTime(d.endHour, d.endMinute);
+      }
+  
+      var rows = [
+        { label: 'Название', value: d.title },
+        { label: 'Должность', value: d.jobTitle },
+        { label: 'Зарплата', value: d.salary + ' \u20BD' },
+        { label: 'Город', value: d.city },
+        { label: 'Адрес', value: d.address },
+        { label: 'График', value: scheduleText },
+        { label: 'Описание', value: d.description }
+      ];
+  
+      var html = '<div class="preview-card">';
+      rows.forEach(function(r) {
+        html += '<div class="preview-row">' +
+          '<span class="preview-label">' + escapeHtml(r.label) + '</span>' +
+          '<span class="preview-value">' + escapeHtml(r.value) + '</span>' +
+          '</div>';
+      });
+      html += '</div>';
+      dom.previewBody.innerHTML = html;
     }
-
-    var controller = new AbortController();
-    var timeout = setTimeout(function() { controller.abort(); }, 15000);
-
-    fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    })
-    .then(function(res) {
-      clearTimeout(timeout);
-      if (!res.ok) throw new Error('Server error: ' + res.status);
-      return res.json();
-    })
-    .then(function() {
-      showSuccess();
-    })
-    .catch(function(err) {
-      showErrorBanner(err.name === 'AbortError' ? 'Время ожидания истекло. Попробуйте снова.' : 'Ошибка отправки. Попробуйте позже.');
-    })
-    .finally(function() {
-      state.isSubmitting = false;
-      dom.submitBtn.disabled = false;
-      dom.loaderOverlay.classList.remove('active');
-    });
-  }
-
-  function showSuccess() {
-    dom.successScreen.classList.add('active');
-    document.body.style.overflow = 'hidden';
-    if (state.isTelegram) {
-      try {
-        window.Telegram.WebApp.MainButton.setText('Готово');
-        window.Telegram.WebApp.MainButton.show();
-        window.Telegram.WebApp.MainButton.onClick(function() {
-          window.Telegram.WebApp.close();
+  
+    function openPreview() {
+      dom.previewModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      dom.btnEdit.focus();
+    }
+  
+    function closePreview() {
+      dom.previewModal.classList.remove('active');
+      document.body.style.overflow = '';
+      dom.submitBtn.focus();
+    }
+  
+    /* === CONFIRM & SEND === */
+    function confirmSubmit() {
+      if (state.isSubmitting) return;
+      state.isSubmitting = true;
+      closePreview();
+      sendData();
+    }
+  
+    /* === ИСПРАВЛЕННАЯ ФУНКЦИЯ SENDDATA === */
+    function sendData() {
+      // Показываем лоадер
+      if (dom.loaderOverlay) {
+        dom.loaderOverlay.classList.add('active');
+      }
+      
+      // Используем данные из state.formData
+      if(state.formData.schedule == "custom")
+      {
+        state.formData.schedule = "c " + 
+  state.formData.startHour + ":" + 
+  (state.formData.startMinute === 0 ? "00" : state.formData.startMinute) + 
+  " до " + 
+  state.formData.endHour + ":" + 
+  (state.formData.endMinute === 0 ? "00" : state.formData.endMinute);
+      }
+      var payload = {
+        title: state.formData.title || '',
+        jobTitle: state.formData.jobTitle || '',
+        salary: state.formData.salary || '',
+        city: state.formData.city || '',
+        address: state.formData.address || '',
+        description: state.formData.description || '',
+        schedule: state.formData.schedule || '',
+        scheduleLabel: state.formData.scheduleLabel || '',
+        companyId: state.telegramUser?.id || 0
+      };
+      
+      console.log('Отправка данных:', payload);
+      console.log('JSON:', JSON.stringify(payload));
+      
+      fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(async response => {
+        console.log('Статус ответа:', response.status);
+        console.log('Статус текстом:', response.statusText);
+        
+        // Пытаемся получить текст ответа
+        const text = await response.text();
+        console.log('Текст ответа:', text);
+        
+        if (!response.ok) {
+          throw new Error(`Сервер вернул ошибку ${response.status}: ${text}`);
+        }
+        
+        // Пытаемся распарсить JSON если это возможно
+        try {
+          return JSON.parse(text);
+        } catch {
+          return text;
+        }
+      })
+      .then(data => {
+        console.log('Успех:', data);
+        // Скрываем лоадер
+        if (dom.loaderOverlay) {
+          dom.loaderOverlay.classList.remove('active');
+        }
+        // Показываем экран успеха
+        showSuccess();
+      })
+      .catch(error => {
+        console.error('Полная ошибка:', error);
+        // Скрываем лоадер
+        if (dom.loaderOverlay) {
+          dom.loaderOverlay.classList.remove('active');
+        }
+        // Показываем ошибку
+        showErrorBanner('Ошибка при отправке: ' + error.message);
+      })
+      .finally(() => {
+        state.isSubmitting = false;
+      });
+    }
+  
+    /* === ИСПРАВЛЕННАЯ ФУНКЦИЯ SHOWSUCCESS === */
+    function showSuccess() {
+      if (dom.successScreen) {
+        dom.successScreen.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+      
+      if (state.isTelegram) {
+        try {
+          window.Telegram.WebApp.MainButton.setText('Готово');
+          window.Telegram.WebApp.MainButton.show();
+          window.Telegram.WebApp.MainButton.onClick(function() {
+            window.Telegram.WebApp.close();
+          });
+        } catch (e) {
+          console.log('Telegram API ошибка:', e);
+        }
+      }
+    }
+  
+    function showErrorBanner(msg) {
+      if (dom.errorBanner && dom.errorBannerText) {
+        dom.errorBanner.classList.add('visible');
+        dom.errorBannerText.textContent = msg;
+        dom.errorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        alert('Ошибка: ' + msg);
+      }
+    }
+  
+    /* === RESET === */
+    function resetForm() {
+      if (dom.successScreen) {
+        dom.successScreen.classList.remove('active');
+      }
+      document.body.style.overflow = '';
+  
+      state.formData = {
+        title: '', jobTitle: '', salary: '', city: '',
+        address: '', description: '', schedule: '', scheduleLabel: '',
+        startHour: 9, startMinute: 0, endHour: 18, endMinute: 0
+      };
+      state.errors = {};
+  
+      Object.keys(dom.fields).forEach(function(name) {
+        if (dom.fields[name]) {
+          dom.fields[name].value = '';
+        }
+      });
+  
+      if (dom.scheduleTrigger) {
+        dom.scheduleTrigger.innerHTML =
+          '<span class="placeholder">Выберите график</span>' +
+          '<span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>';
+      }
+  
+      if (dom.scheduleDropdown) {
+        dom.scheduleDropdown.querySelectorAll('.select-option').forEach(function(o) {
+          o.classList.remove('active');
+          o.removeAttribute('aria-selected');
         });
-      } catch (e) {}
+      }
+  
+      if (dom.customTimeRow) {
+        dom.customTimeRow.classList.add('hidden');
+      }
+      
+      clearErrors();
+  
+      Object.keys(dom.charCounts).forEach(function(name) {
+        if (dom.charCounts[name]) {
+          dom.charCounts[name].textContent = '';
+        }
+      });
+  
+      resetWheels();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      if (dom.fields.title) {
+        dom.fields.title.focus();
+      }
+  
+      if (state.isTelegram) {
+        try { window.Telegram.WebApp.MainButton.hide(); } catch (e) {}
+      }
     }
-  }
-
-  function showErrorBanner(msg) {
-    dom.errorBanner.classList.add('visible');
-    dom.errorBannerText.textContent = msg;
-    dom.errorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  /* === RESET === */
-  function resetForm() {
-    dom.successScreen.classList.remove('active');
-    document.body.style.overflow = '';
-
-    state.formData = {
-      title: '', jobTitle: '', salary: '', city: '',
-      address: '', description: '', schedule: '', scheduleLabel: '',
-      startHour: 9, startMinute: 0, endHour: 18, endMinute: 0
-    };
-    state.errors = {};
-
-    Object.keys(dom.fields).forEach(function(name) {
-      dom.fields[name].value = '';
-    });
-
-    dom.scheduleTrigger.innerHTML =
-      '<span class="placeholder">Выберите график</span>' +
-      '<span class="select-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>';
-
-    dom.scheduleDropdown.querySelectorAll('.select-option').forEach(function(o) {
-      o.classList.remove('active');
-      o.removeAttribute('aria-selected');
-    });
-
-    dom.customTimeRow.classList.add('hidden');
-    clearErrors();
-
-    Object.keys(dom.charCounts).forEach(function(name) {
-      dom.charCounts[name].textContent = '';
-    });
-
-    resetWheels();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    dom.fields.title.focus();
-
-    if (state.isTelegram) {
-      try { window.Telegram.WebApp.MainButton.hide(); } catch (e) {}
+  
+    /* === UTILS === */
+    function padZero(n) { return n < 10 ? '0' + n : '' + n; }
+    function formatTime(h, m) { return padZero(h) + ':' + padZero(m); }
+    function escapeHtml(str) {
+      if (!str) return '';
+      var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+      return String(str).replace(/[&<>"']/g, function(c) { return map[c]; });
     }
-  }
-
-  /* === UTILS === */
-  function padZero(n) { return n < 10 ? '0' + n : '' + n; }
-  function formatTime(h, m) { return padZero(h) + ':' + padZero(m); }
-  function escapeHtml(str) {
-    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-    return String(str).replace(/[&<>"']/g, function(c) { return map[c]; });
-  }
-
-  /* === BOOT === */
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-})();
-</script>
+  
+    /* === BOOT === */
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  
+  })();
+  </script>
 </body>
 </html>
