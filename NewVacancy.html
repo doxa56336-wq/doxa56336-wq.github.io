@@ -877,37 +877,59 @@ textarea.field-input{
 (async function initApp() {
   // Показываем лоадер заранее
   document.body.innerHTML = `<div id="loading" class="loading">
-  <svg width="64px" height="48px">
+    <svg width="64px" height="48px">
       <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="back"></polyline>
-    <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="front"></polyline>
-  </svg>
-</div>`;
+      <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="front"></polyline>
+    </svg>
+  </div>`;
 
-  // Ждём Telegram WebApp
+  window.state = window.state || {};
   let tg = null;
+
+  // 1️⃣ Попытка получить Telegram WebApp API
   if (window.Telegram && window.Telegram.WebApp) {
     tg = window.Telegram.WebApp;
+    tg.ready(); // уведомляем Telegram, что фронт готов
 
-    // Ждём события ready
+    // Ждём, пока объект готов
     await new Promise(resolve => {
-      if (tg.isReady) {
-        resolve();
-      } else {
-        tg.onEvent('ready', resolve);
-        tg.ready();
-      }
+      if (tg.isReady) resolve();
+      else tg.onEvent('ready', resolve);
     });
+
+    window.state.telegramUser = tg.initDataUnsafe?.user || null;
+    window.state.isTelegram = true;
+  } else {
+    // 2️⃣ Если Web App API нет (прямой URL), пытаемся распарсить tgWebAppData из URL
+    const hash = window.location.hash.replace(/^#/, '');
+    const urlParams = new URLSearchParams(hash);
+    const webAppData = urlParams.get('tgWebAppData');
+
+    if (webAppData) {
+      const decoded = decodeURIComponent(webAppData);
+
+      // Ищем user JSON внутри строки
+      const userMatch = decoded.match(/user=(\{.*?\})/);
+      if (userMatch) {
+        try {
+          window.state.telegramUser = JSON.parse(decodeURIComponent(userMatch[1]));
+        } catch (err) {
+          console.error('Ошибка при парсинге user:', err);
+          window.state.telegramUser = null;
+        }
+      }
+    }
+
+    window.state.isTelegram = false;
   }
 
-  // Telegram готов, теперь можно инициализировать приложение
+  // Убираем лоадер
   document.getElementById('loading')?.remove();
 
-  // Сохраняем user в state
-  window.state = window.state || {};
-  window.state.telegramUser = tg?.initDataUnsafe?.user || null;
-  window.state.isTelegram = !!tg;
+  console.log('Telegram user:', window.state.telegramUser);
+  console.log('isTelegram:', window.state.isTelegram);
 
-  // Дальше вызываем остальной JS вашего приложения
+  // Дальше вызываем основной JS приложения
   initMainApp();
 })();
 
