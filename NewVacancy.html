@@ -856,7 +856,7 @@ textarea.field-input{
       isTelegram: false
     };
   
-    var API_ENDPOINT = 'https://debug.john-mavlo.ru/api/TelegramBot/AddNewVacancy';
+    var API_ENDPOINT = 'https://debug.john-mavlo.ru//api/TelegramBot/AddNewVacancy';
     var DEBOUNCE_DELAY = 300;
     var debounceTimers = {};
     var MINUTES = [0, 15, 30, 45];
@@ -909,7 +909,6 @@ textarea.field-input{
     /* === INIT === */
     function init() {
       cacheDom();
-      initTelegram();
       buildDrumWheels();
       bindEvents();
     }
@@ -1436,6 +1435,7 @@ textarea.field-input{
   state.formData.endHour + ":" + 
   (state.formData.endMinute === 0 ? "00" : state.formData.endMinute);
       }
+      initTelegram();
       var payload = {
         title: state.formData.title || '',
         jobTitle: state.formData.jobTitle || '',
