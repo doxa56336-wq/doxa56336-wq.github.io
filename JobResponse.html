@@ -803,7 +803,8 @@ textarea.field-input{
       if (countIds[i]) dom.charCounts[fieldNames[i]] = document.getElementById(countIds[i]);
     }
   }
- async function LoadUserData() {
+ async function LoadUserData() 
+ {
 
   if (tg) {
     tg.ready();
@@ -855,7 +856,7 @@ textarea.field-input{
         console.error("Ошибка:", error);
     }
 }
-
+ }
   /* === EVENTS === */
   function bindEvents() {
     // Text fields
