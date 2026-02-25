@@ -806,12 +806,14 @@ textarea.field-input{
  async function LoadUserData() 
  {
   let tg = window.Telegram?.WebApp;
-  if (tg) {
+  if (tg) 
+  {
     tg.ready();
     console.log("initDataUnsafe:", tg.initDataUnsafe);
     dom.TgChatId = tg.initDataUnsafe?.user?.id || 0;
-    dom.StartParams = tg.initDataUnsafe.StartParams || "";
-  } else {
+    dom.StartParams = tg.initDataUnsafe.StartParams || "sosi";
+  } 
+  else {
     const hash = window.location.hash.slice(1);
     const params = new URLSearchParams(hash);
     const webAppData = params.get("tgWebAppData");
@@ -829,8 +831,6 @@ textarea.field-input{
         }
       }
     }
-    if (!tg?.initData || tg.initData.length === 0) {
-    console.log("Открыто вне Telegram WebApp");
     return;
 }
     try {
