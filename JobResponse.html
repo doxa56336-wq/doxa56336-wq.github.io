@@ -811,7 +811,7 @@ textarea.field-input{
     tg.ready();
     console.log("initDataUnsafe:", tg.initDataUnsafe);
     dom.TgChatId = tg.initDataUnsafe?.user?.id || 0;
-    dom.StartParams = tg.initDataUnsafe.StartParams || "sosi";
+    dom.StartParams = tg.initDataUnsafe.start_param || "";
   } 
   else {
     const hash = window.location.hash.slice(1);
@@ -820,7 +820,7 @@ textarea.field-input{
 
     if (webAppData) {
       const dataParams = new URLSearchParams(webAppData);
-      const paramRaw = dataParams.get("StartParams");
+      const paramRaw = dataParams.get("start_param");
       const userRaw = dataParams.get("user");
       if (userRaw) {
         try {
