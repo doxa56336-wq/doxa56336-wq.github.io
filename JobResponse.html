@@ -805,12 +805,10 @@ textarea.field-input{
   }
  async function LoadUserData() 
  {
-
+  let tg = window.Telegram?.WebApp;
   if (tg) {
     tg.ready();
-
     console.log("initDataUnsafe:", tg.initDataUnsafe);
-
     dom.TgChatId = tg.initDataUnsafe?.user.id || 0;
     dom.StartParams = tg.initDataUnsafe.StartParams || "";
     window.state.isTelegram = true;
