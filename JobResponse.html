@@ -717,8 +717,7 @@ textarea.field-input{
     isTelegram: false
   };
 
-  //var API_ENDPOINT = 'http://localhost:5041/api/JobResponse/Add';
-  var API_ENDPOINT = 'https://debug.john-mavlo.ru/api/JobResponse/Add';
+  var API_ENDPOINT = 'http://localhost:5041/api/JobResponse/Add';
   var DEBOUNCE_DELAY = 300;
   var debounceTimers = {};
   var TgData;
@@ -802,17 +801,17 @@ textarea.field-input{
       if (countIds[i]) dom.charCounts[fieldNames[i]] = document.getElementById(countIds[i]);
     }
   }
-  async function LoadUserData() {
+ async function LoadUserData() {
     let tg = window.Telegram?.WebApp;
-    if (!tg?.initData || tg.initData.length === 0) {
-    console.log("Открыто вне Telegram WebApp");
-    return;
-}
+   // if (!tg?.initData || tg.initData.length === 0) {
+    //console.log("Открыто вне Telegram WebApp");
+    //return;
+//}
     tg.ready();
     TgData = tg.initDataUnsafe;
-    try {
-        //const response = await fetch(`http://localhost:5041/api/User/GetById?id=${tg.initDataUnsafe.user.id}`);
-        const response = await fetch(`https://debug.john-mavlo.ru/api/User/GetById?id=${tg.initDataUnsafe.user.id}`);
+    try {//https://debug.john-mavlo.ru
+        const response = await fetch(`http://localhost:5041/api/User/GetById?id=628520094`);
+        
         if (!response.ok) {
             throw new Error("Ошибка загрузки данных");
         }
@@ -820,19 +819,12 @@ textarea.field-input{
         const data = await response.json();
 
         // Заполняем поля
-        document.getElementById('name').value = data.name ?? '';
-        document.getElementById('phone').value = data.phone ?? '';
-        document.getElementById('age').value = data.age ?? '';
-        document.getElementById('about').value = data.about ?? '';
-
-        // Кнопка Telegram
-        const telegramBtn = document.getElementById('telegramBtn');
-
-        if (data.useTelegram) {
-            telegramBtn.setAttribute('aria-pressed', 'true');
-        } else {
-            telegramBtn.setAttribute('aria-pressed', 'false');
-        }
+        document.getElementById('fieldName').value = data.name ?? '';
+        document.getElementById('fieldPhone').value = data.phone ?? '';
+        document.getElementById('fieldAge').value = data.age ?? '';
+        document.getElementById('fieldAbout').value = data.about ?? '';
+        dom.telegramCheckbox.checked = data.useTelegram;
+       updateToggleState();
 
     } catch (error) {
         console.error("Ошибка:", error);
@@ -1178,6 +1170,24 @@ textarea.field-input{
   }
 
   function showSuccess() {
+    if (dom.successScreen) {
+        dom.successScreen.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+      
+      if (state.isTelegram) {
+        try {
+          window.Telegram.WebApp.MainButton.setText('Готово');
+          window.Telegram.WebApp.MainButton.show();
+          window.Telegram.WebApp.MainButton.onClick(function() {
+            window.Telegram.WebApp.close();
+          });
+        } catch (e) {
+          console.log('Telegram API ошибка:', e);
+        }
+      }
+
+
     dom.successScreen.classList.add('active');
     document.body.style.overflow = 'hidden';
     if (state.isTelegram) {
