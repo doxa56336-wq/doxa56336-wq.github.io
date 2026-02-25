@@ -811,7 +811,8 @@ textarea.field-input{
     tg.ready();
     console.log("initDataUnsafe:", tg.initDataUnsafe);
     dom.TgChatId = tg.initDataUnsafe?.user?.id || 0;
-    dom.StartParams = tg.initDataUnsafe.start_param || "";
+    dom.StartParams = tg.initDataUnsafe?.start_param ? tg.initDataUnsafe?.start_param 
+    : "00000000-0000-0000-0000-000000000000";
   } 
   else {
     const hash = window.location.hash.slice(1);
@@ -1116,9 +1117,8 @@ textarea.field-input{
     var payload = {
   TgChatId: dom.TgChatId,
 
-  VacancyId: dom.StartParams 
-      ? dom.StartParams 
-      : "00000000-0000-0000-0000-000000000000",
+  VacancyId: dom.StartParams,
+      
 
   Name: d.name,
   Phone: d.phone,
