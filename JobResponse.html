@@ -1108,9 +1108,9 @@ textarea.field-input{
   UseTelegram: state.telegramUser // boolean
 };
     var controller = new AbortController();
-    var timeout = setTimeout(function() { controller.abort(); }, 1600000);
+    var timeout = setTimeout(function() { controller.abort(); }, 15000);
 
-    fetch(API_ENDPOINT `${API_ENDPOINT}api/JobResponse/Add`, {
+    fetch(`${API_ENDPOINT}api/JobResponse/Add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
