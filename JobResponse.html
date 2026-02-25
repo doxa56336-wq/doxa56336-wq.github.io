@@ -714,14 +714,13 @@ textarea.field-input{
     errors: {},
     isSubmitting: false,
     telegramUser: false,
-    isTelegram: false
+    isTelegram: true
   };
   
   var API_ENDPOINT = 'https://debug.john-mavlo.ru/';
   //var API_ENDPOINT = 'http://localhost:5041/';
   var DEBOUNCE_DELAY = 300;
   var debounceTimers = {};
-  var TgData;
   /* === DOM CACHE === */
   var dom = {
     form: null,
@@ -739,7 +738,9 @@ textarea.field-input{
     btnConfirm: null,
     loaderOverlay: null,
     successScreen: null,
-    btnReset: null
+    btnReset: null,
+    TgChatId: 0,
+    StartParams
   };
 
   /* === VALIDATION RULES === */
@@ -803,15 +804,38 @@ textarea.field-input{
     }
   }
  async function LoadUserData() {
-    let tg = window.Telegram?.WebApp;
+
+  if (tg) {
+    tg.ready();
+
+    console.log("initDataUnsafe:", tg.initDataUnsafe);
+
+    window.state.telegramUser = tg.initDataUnsafe?.user || null;
+    window.state.isTelegram = true;
+  } else {
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash);
+    const webAppData = params.get("tgWebAppData");
+
+    if (webAppData) {
+      const dataParams = new URLSearchParams(webAppData);
+      const paramRaw = dataParams.get("start_param");
+      const userRaw = dataParams.get("user");
+      if (userRaw) {
+        try {
+          dom.TgChatId = JSON.parse(userRaw).id;
+          dom.StartParams = JSON.parse(paramRaw);
+        } catch (e) {
+          console.error("JSON parse error:", e);
+        }
+      }
+    }
     if (!tg?.initData || tg.initData.length === 0) {
     console.log("Открыто вне Telegram WebApp");
     return;
 }
-    tg.ready();
-    TgData = tg.initDataUnsafe;
     try {
-        const response = await fetch(`${API_ENDPOINT}api/User/GetById?id=${TgData.user.id}`)
+        const response = await fetch(`${API_ENDPOINT}api/User/GetById?id=${dom.TgChatId}`)
         
         if (!response.ok) {
             throw new Error("Ошибка загрузки данных");
@@ -1092,10 +1116,10 @@ textarea.field-input{
 
     var d = state.formData;
     var payload = {
-  TgChatId: TgData?.user?.id ?? 0,
+  TgChatId: dom.TgChatId,
 
-  VacancyId: TgData?.start_param 
-      ? TgData.start_param 
+  VacancyId: dom.StartParams 
+      ? dom.StartParams 
       : "00000000-0000-0000-0000-000000000000",
 
   Name: d.name,
