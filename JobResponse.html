@@ -811,7 +811,7 @@ textarea.field-input{
     tg.ready();
     TgData = tg.initDataUnsafe;
     try {
-        const response = await (`${API_ENDPOINT}api/User/GetById?id=${TgData.user.id}`)
+        const response = await fetch(`${API_ENDPOINT}api/User/GetById?id=${TgData.user.id}`)
         
         if (!response.ok) {
             throw new Error("Ошибка загрузки данных");
