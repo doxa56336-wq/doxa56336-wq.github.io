@@ -139,8 +139,8 @@
   <div class="success-icon">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
   </div>
-  <h2>Отклик отправлен</h2>
-  <p>Работодатель получит ваш отклик и свяжется с вами в ближайшее время</p>
+  <h2 id="SuccessScreeenTitle">Отклик отправлен</h2>
+  <p id="SuccessScreeenText">Работодатель получит ваш отклик и свяжется с вами в ближайшее время</p>
 </div>
 
 <script>
@@ -294,7 +294,13 @@
         const response = await fetch(`${API_ENDPOINT}api/User/CheckUserJobResponse?id=${dom.TgChatId}&guid=${dom.StartParams}`)
         if(response.status === 409)
         {
-          showSuccess();
+          showSuccess("Отклик отправлен", "Вы уже откликались на эту вакансию 🙂");
+          document.getElementById("loading")?.remove();
+          return;
+        }
+        else if(response.status === 400)
+        {
+          showSuccess("Это ваша вакансия 🙂", "Отклик доступен только другим кандидатам.");
           document.getElementById("loading")?.remove();
           return;
         }
@@ -661,12 +667,19 @@
     });
   }
 
-  function showSuccess() {
+  function showSuccess(title = null, text = null) {
     if (dom.successScreen) {
         dom.successScreen.classList.add('active');
         document.body.style.overflow = 'hidden';
       }
-      
+      if(text != null)
+      {
+        document.getElementById("SuccessScreeenTitle").textContent = text;
+      }
+      if(title != null)
+      {
+        document.getElementById("SuccessScreeenText").textContent = title;
+      }
       if (state.isTelegram) {
         try {
           window.Telegram.WebApp.MainButton.setText('Готово');
