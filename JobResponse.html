@@ -220,6 +220,7 @@
     await LoadUserData();
     cacheDom();
     bindEvents();
+    window.Telegram?.WebApp?.ready();
   }
 
   function cacheDom() {
@@ -261,7 +262,7 @@
   let tg = window.Telegram?.WebApp;
   if (tg) 
   {
-    tg.ready();
+    
     console.log("initDataUnsafe:", tg.initDataUnsafe);
     dom.TgChatId = tg.initDataUnsafe?.user?.id || 0;
     dom.StartParams = tg.initDataUnsafe?.start_param ? tg.initDataUnsafe?.start_param 
