@@ -237,7 +237,7 @@
     dom.btnConfirm = document.getElementById('btnConfirm');
     dom.loaderOverlay = document.getElementById('loaderOverlay');
     dom.btnReset = document.getElementById('btnReset');
-
+    dom.telegramCheckbox = document.getElementById('fieldTelegram');
     var fieldNames = ['name','phone','age','about'];
     var fieldIds = ['fieldName','fieldPhone','fieldAge','fieldAbout'];
     var countIds = [null, null, null, 'countAbout'];
@@ -278,8 +278,6 @@
         }
       }
     }
-    document.getElementById("loading")?.remove();
-    return;
 }
     try {
         const response = await fetch(`${API_ENDPOINT}api/User/CheckUserJobResponse?id=${dom.TgChatId}&guid=${dom.StartParams}`)
