@@ -220,8 +220,6 @@
     await LoadUserData();
     cacheDom();
     bindEvents();
-    window.Telegram?.WebApp?.ready();
-    document.querySelector("body").style.visibility = "visible";
   }
 
   function cacheDom() {
@@ -229,7 +227,7 @@
     dom.errorBanner = document.getElementById('errorBanner');
     dom.errorBannerText = document.getElementById('errorBannerText');
     dom.telegramToggle = document.getElementById('telegramToggle');
-    dom.successScreen = document.getElementById('successScreen');
+    
     dom.submitBtn = document.getElementById('submitBtn');
     dom.previewModal = document.getElementById('previewModal');
     dom.previewBody = document.getElementById('previewBody');
@@ -237,7 +235,7 @@
     dom.btnConfirm = document.getElementById('btnConfirm');
     dom.loaderOverlay = document.getElementById('loaderOverlay');
     dom.btnReset = document.getElementById('btnReset');
-    dom.telegramCheckbox = document.getElementById('fieldTelegram');
+
     var fieldNames = ['name','phone','age','about'];
     var fieldIds = ['fieldName','fieldPhone','fieldAge','fieldAbout'];
     var countIds = [null, null, null, 'countAbout'];
@@ -251,10 +249,19 @@
   }
  async function LoadUserData() 
  {
+  dom.successScreen = document.getElementById('successScreen');
+  document.body.insertAdjacentHTML("afterbegin", `
+   <div id="loading" class="loading">
+  <svg width="64px" height="48px">
+      <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="back"></polyline>
+    <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" id="front"></polyline>
+  </svg>
+</div>
+  `);
   let tg = window.Telegram?.WebApp;
   if (tg) 
   {
-    
+    tg.ready();
     console.log("initDataUnsafe:", tg.initDataUnsafe);
     dom.TgChatId = tg.initDataUnsafe?.user?.id || 0;
     dom.StartParams = tg.initDataUnsafe?.start_param ? tg.initDataUnsafe?.start_param 
@@ -278,6 +285,8 @@
         }
       }
     }
+    document.getElementById("loading")?.remove();
+    return;
 }
     try {
         const response = await fetch(`${API_ENDPOINT}api/User/CheckUserJobResponse?id=${dom.TgChatId}&guid=${dom.StartParams}`)
