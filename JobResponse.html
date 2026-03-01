@@ -234,7 +234,6 @@
     dom.btnEdit = document.getElementById('btnEdit');
     dom.btnConfirm = document.getElementById('btnConfirm');
     dom.loaderOverlay = document.getElementById('loaderOverlay');
-    dom.successScreen = document.getElementById('successScreen');
     dom.btnReset = document.getElementById('btnReset');
 
     var fieldNames = ['name','phone','age','about'];
@@ -250,6 +249,7 @@
   }
  async function LoadUserData() 
  {
+  dom.successScreen = document.getElementById('successScreen');
   document.body.insertAdjacentHTML("afterbegin", `
    <div id="loading" class="loading">
   <svg width="64px" height="48px">
